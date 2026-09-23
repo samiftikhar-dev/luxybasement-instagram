@@ -33,5 +33,12 @@
   "attempts": 2,
   "error": "POST 17841422120385409/media_publish failed: Media ID is not available (code 9007/2207027)",
   "lastTried": "2026-09-23T20:22:03.010Z"
+ },
+ "1072241722797410164": {
+  "status": "published",
+  "title": "Fendi White Fox Fur Super Karlito Bag Charm",
+  "mediaId": "17961912477204948",
+  "at": "2026-09-23T20:25:39.807Z",
+  "permalink": "https://www.instagram.com/p/DdpKd4Uj_0l/"
  }
 }
