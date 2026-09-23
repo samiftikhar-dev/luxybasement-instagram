@@ -91,6 +91,30 @@ async function createContainer(igId, post) {
   })).id;
 }
 
+/**
+ * Instagram sometimes answers media_publish with "Media ID is not available"
+ * (2207027) while the container is still settling, and occasionally publishes
+ * anyway. Retry the same container a few times rather than building a new one.
+ */
+async function publishContainer(igId, container) {
+  for (let i = 1; ; i++) {
+    try {
+      return (await api(`${igId}/media_publish`, { method: 'POST', params: { creation_id: container } })).id;
+    } catch (err) {
+      if (err.subcode !== 2207027 || i === 4) throw err;
+      console.log(`Instagram not ready to publish yet (try ${i}); waiting 20s.`);
+      await sleep(20000);
+    }
+  }
+}
+
+/** The account's recent posts, keyed by first caption line, to catch posts that went up despite an error. */
+async function recentByHeadline(igId, limit = 50) {
+  const { data = [] } = await api(`${igId}/media`, { params: { fields: 'id,caption,permalink,timestamp', limit: String(limit) } });
+  return new Map(data.filter((m) => m.caption).map((m) => [m.caption.split('\n')[0], m]));
+}
+const headline = (post) => post.caption.split('\n')[0];
+
 async function quota(igId) {
   const res = await api(`${igId}/content_publishing_limit`, { params: { fields: 'quota_usage,config' } });
   const q = res.data?.[0] || {};
@@ -112,6 +136,31 @@ async function main() {
   const done = posts.filter((p) => state[p.id]?.status === 'published').length;
   const next = posts.find((p) => !state[p.id] || (state[p.id].status === 'failed' && state[p.id].attempts < MAX_ATTEMPTS));
   console.log(`Account @${me.username}: ${done}/${posts.length} posted.`);
+
+  if (MODE === 'reconcile') {
+    // Settle every failed entry against what is actually on the account: mark
+    // it published if it went up anyway, otherwise give it fresh attempts.
+    const { data: all = [] } = await api(`${igId}/media`, { params: { fields: 'id,caption,permalink,timestamp', limit: '100' } });
+    const recent = new Map(all.filter((m) => m.caption).map((m) => [m.caption.split('\n')[0], m]));
+    const dupes = {};
+    all.forEach((m) => { const h = (m.caption || '').split('\n')[0]; dupes[h] = (dupes[h] || 0) + 1; });
+    for (const p of posts) {
+      const s = state[p.id];
+      if (!s || s.status !== 'failed') continue;
+      const live = recent.get(headline(p));
+      if (live) {
+        state[p.id] = { status: 'published', title: p.title, mediaId: live.id, at: live.timestamp, permalink: live.permalink, note: 'went up despite an error' };
+        console.log(`On the account after all: ${p.title} ${live.permalink}${dupes[headline(p)] > 1 ? `  (appears ${dupes[headline(p)]} times)` : ''}`);
+      } else {
+        state[p.id] = { ...s, attempts: 0 };
+        console.log(`Not on the account; will retry: ${p.title}`);
+      }
+    }
+    const repeated = Object.entries(dupes).filter(([, n]) => n > 1);
+    console.log(repeated.length ? `Posted more than once: ${repeated.map(([h, n]) => `${h} (${n}x)`).join('; ')}` : 'No duplicate posts in the last 100.');
+    await save();
+    return;
+  }
 
   if (MODE === 'check') {
     const q = await quota(igId).catch((e) => ({ error: e.message }));
@@ -140,11 +189,21 @@ async function main() {
     return;
   }
 
+  // A retry of a post that errored last time may already be live.
+  if (state[next.id]?.status === 'failed') {
+    const live = (await recentByHeadline(igId, 25)).get(headline(next));
+    if (live) {
+      state[next.id] = { status: 'published', title: next.title, mediaId: live.id, at: live.timestamp, permalink: live.permalink, note: 'went up despite an error' };
+      await save();
+      return console.log(`Already on the account, not posting again: ${live.permalink}`);
+    }
+  }
+
   console.log(`Posting (${q.used + 1}/${q.total} in the last 24h): ${next.title}`);
   try {
     const container = await createContainer(igId, next);
     await waitUntilReady(container);
-    const { id: mediaId } = await api(`${igId}/media_publish`, { method: 'POST', params: { creation_id: container } });
+    const mediaId = await publishContainer(igId, container);
     // Record it before anything else can fail, so it is never posted twice.
     state[next.id] = { status: 'published', title: next.title, mediaId, at: new Date().toISOString() };
     await save();
