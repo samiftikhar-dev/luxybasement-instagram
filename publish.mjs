@@ -24,6 +24,9 @@ const MAX_ATTEMPTS = 2;
 // GitHub can delay scheduled runs, which sometimes bunches two together. Never
 // post twice inside this window, so the feed keeps its even spacing.
 const MIN_GAP_MINUTES = 45;
+// Metricool publishes its last free posts until 4:30 PM PDT on Sep 23; take
+// over from the 5:45 PM slot so the two never post side by side.
+const START_AT = '2026-09-24T00:40:00Z';
 
 async function api(path, { method = 'GET', params = {} } = {}) {
   const body = new URLSearchParams({ ...params, access_token: TOKEN });
@@ -95,6 +98,7 @@ async function main() {
   }
 
   if (!next) return console.log('Queue is empty. All posts are published.');
+  if (Date.now() < Date.parse(START_AT)) return console.log(`Not starting until ${START_AT}.`);
 
   const last = Object.values(state).map((s) => s.at).filter(Boolean).sort().pop();
   if (last && Date.now() - Date.parse(last) < MIN_GAP_MINUTES * 60e3) {
