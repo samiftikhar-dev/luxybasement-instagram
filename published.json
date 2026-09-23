@@ -30,8 +30,8 @@
  "-3989209390123628768": {
   "status": "failed",
   "title": "Hermes Gres Aluminium Sunset Medor Bracelet T3",
-  "attempts": 1,
+  "attempts": 2,
   "error": "POST 17841422120385409/media_publish failed: Media ID is not available (code 9007/2207027)",
-  "lastTried": "2026-09-23T20:18:34.332Z"
+  "lastTried": "2026-09-23T20:22:03.010Z"
  }
 }
