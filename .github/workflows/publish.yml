@@ -1,0 +1,54 @@
+name: Publish to Instagram
+
+on:
+  schedule:
+    # Ten posts a day at the same Pacific times as before: 9:00, 10:15, 11:30,
+    # 12:45, 2:00, 3:15, 4:30, 5:45, 7:00 and 8:15 PM PDT. Cron runs in UTC
+    # (PDT + 7h). GitHub may start a scheduled run a few minutes late.
+    - cron: '0 16,21,2 * * *'
+    - cron: '15 17,22,3 * * *'
+    - cron: '30 18,23 * * *'
+    - cron: '45 19,0 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'check = test the connection without posting; publish = post the next piece now'
+        type: choice
+        options: [check, publish]
+        default: check
+
+permissions:
+  contents: write
+
+# Never let two runs post at the same time.
+concurrency:
+  group: instagram-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Post the next piece
+        run: node publish.mjs
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          MODE: ${{ github.event.inputs.mode || 'publish' }}
+
+      - name: Save progress
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add published.json
+          git diff --cached --quiet && exit 0
+          git commit -m "Record Instagram post"
+          git pull --rebase
+          git push

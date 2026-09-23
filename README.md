@@ -1,0 +1,35 @@
+# LuxyBasement Instagram publisher
+
+Posts the LuxyBasement catalogue to Instagram, one piece per scheduled slot, ten a day. It's free: it runs on GitHub Actions and posts through Instagram's own API.
+
+- `posts.json` is the queue, in posting order: caption, photos and hashtags for each piece.
+- `published.json` records what has gone out. The workflow updates it after every post.
+- `publish.mjs` is the script that posts.
+- `.github/workflows/publish.yml` is the schedule.
+
+## One-time setup
+
+1. **Instagram account type.** @luxybasement must be a Business or Creator account. It already is, since Metricool could post to it.
+2. **Meta app.** Go to https://developers.facebook.com/apps and choose **Create app**.
+   - Use case: **Manage messaging & content on Instagram**. This adds the Instagram API with Instagram Login.
+   - Any app name works, for example "LuxyBasement Publisher".
+3. **Connect the account.** In the app, open **Instagram → API setup with Instagram login**.
+   - Under **Generate access tokens**, click **Add account** and log in as @luxybasement.
+   - If Meta asks, add @luxybasement as an Instagram tester under **App roles → Roles**. Then accept the invite in the Instagram app under **Settings → Website permissions → Apps and websites → Tester invites**.
+4. **Get the token.** Back in **Generate access tokens**, click **Generate token** next to @luxybasement and copy it. This is a long-lived token that lasts 60 days.
+5. **Store it in GitHub.** In this repo, open **Settings → Secrets and variables → Actions → New repository secret**.
+   - Name: `IG_ACCESS_TOKEN`
+   - Value: the token
+
+   Don't paste the token anywhere else.
+6. **Test it.** Open **Actions → Publish to Instagram → Run workflow**, choose `check` and run it. The log should show the account, the quota and the next piece's photos as `image/jpeg`. Nothing is posted.
+
+After that, the schedule posts on its own.
+
+## Day to day
+
+- **Pause:** Actions → Publish to Instagram → ⋯ → **Disable workflow**. Enable it again to resume from where it stopped.
+- **Post the next piece now:** Run workflow → `publish`.
+- **A piece sold:** delete its entry from `posts.json`. Its `id` is the same uuid the post had in Metricool.
+- **Failures:** a post that fails twice is skipped and the queue moves on. `published.json` records the error.
+- **Token expiry:** the token lasts 60 days. Generate a new one the same way before then and update the secret.
