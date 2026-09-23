@@ -2,25 +2,28 @@ name: Publish to Instagram
 
 on:
   schedule:
-    # Ten posts a day at the same Pacific times as before: 9:00, 10:15, 11:30,
-    # 12:45, 2:00, 3:15, 4:30, 5:45, 7:00 and 8:15 PM PDT. Cron runs in UTC
-    # (PDT + 7h). GitHub may start a scheduled run a few minutes late.
-    - cron: '0 16,21,2 * * *'
-    - cron: '15 17,22,3 * * *'
-    - cron: '30 18,23 * * *'
-    - cron: '45 19,0 * * *'
+    # Five posts an hour, every 12 minutes, around the clock. Offset from the
+    # top of the hour, when GitHub's scheduler is busiest and runs start late.
+    - cron: '6,18,30,42,54 * * * *'
   workflow_dispatch:
     inputs:
       mode:
-        description: 'check = test the connection without posting; publish = post the next piece now'
+        description: 'check = test the connection without posting; publish = post the next piece now; burst = post several in a row'
         type: choice
-        options: [check, publish]
+        options: [check, publish, burst]
         default: check
+      count:
+        description: 'burst only: how many to post'
+        default: '20'
+      interval_minutes:
+        description: 'burst only: minutes between posts'
+        default: '3'
 
 permissions:
   contents: write
 
-# Never let two runs post at the same time.
+# Never let two runs post at the same time. Scheduled runs that fire during a
+# burst wait for it to finish.
 concurrency:
   group: instagram-publish
   cancel-in-progress: false
@@ -28,7 +31,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
 
@@ -36,19 +39,38 @@ jobs:
         with:
           node-version: 20
 
-      - name: Post the next piece
-        run: node publish.mjs
+      - name: Post
         env:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           MODE: ${{ github.event.inputs.mode || 'publish' }}
-
-      - name: Save progress
-        if: always()
+          COUNT: ${{ github.event.inputs.count || '1' }}
+          INTERVAL: ${{ github.event.inputs.interval_minutes || '3' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add published.json
-          git diff --cached --quiet && exit 0
-          git commit -m "Record Instagram post"
-          git pull --rebase
-          git push
+          # Commit progress after every post, so a cancelled run never loses
+          # track of what already went out.
+          save() {
+            git add published.json
+            if ! git diff --cached --quiet; then
+              git commit -qm "Record Instagram post"
+              git pull -q --rebase
+              git push -q
+            fi
+          }
+
+          if [ "$MODE" != burst ]; then
+            rc=0; node publish.mjs || rc=$?
+            save
+            # 75 is a quota or rate-limit pause, which is expected, not a failure.
+            [ "$rc" = 75 ] && rc=0
+            exit $rc
+          fi
+
+          for i in $(seq 1 "$COUNT"); do
+            rc=0; MODE=publish MIN_GAP_MINUTES=0 node publish.mjs || rc=$?
+            save
+            if [ "$rc" = 75 ]; then echo "Quota or rate limit reached; the schedule resumes later."; exit 0; fi
+            if [ "$rc" = 76 ]; then exit 1; fi
+            if [ "$i" -lt "$COUNT" ]; then sleep $(( INTERVAL * 60 )); fi
+          done

@@ -1,6 +1,6 @@
 # LuxyBasement Instagram publisher
 
-Posts the LuxyBasement catalogue to Instagram, one piece per scheduled slot, ten a day. It's free: it runs on GitHub Actions and posts through Instagram's own API.
+Posts the LuxyBasement catalogue to Instagram, five an hour (one every 12 minutes). It's free: it runs on GitHub Actions and posts through Instagram's own API. Instagram allows 100 API posts per rolling 24 hours, so when that quota fills, posting pauses until it frees up.
 
 - `posts.json` is the queue, in posting order: caption, photos and hashtags for each piece.
 - `published.json` records what has gone out. The workflow updates it after every post.
@@ -30,6 +30,8 @@ After that, the schedule posts on its own.
 
 - **Pause:** Actions → Publish to Instagram → ⋯ → **Disable workflow**. Enable it again to resume from where it stopped.
 - **Post the next piece now:** Run workflow → `publish`.
+- **Post several in a row:** Run workflow → `burst`, then set how many and the minutes between them.
+- **Blocked by Instagram:** the run fails and GitHub emails you. Posting stops until you re-run it. Check the Instagram app for a warning before resuming.
 - **A piece sold:** delete its entry from `posts.json`. Its `id` is the same uuid the post had in Metricool.
 - **Failures:** a post that fails twice is skipped and the queue moves on. `published.json` records the error.
 - **Token expiry:** the token lasts 60 days. Generate a new one the same way before then and update the secret.

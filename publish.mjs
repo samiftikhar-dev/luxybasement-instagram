@@ -12,6 +12,12 @@
  *
  * MODE=check   verify the token, account, quota and next post; posts nothing.
  * MODE=publish post the next piece (the default for scheduled runs).
+ *
+ * Exit codes, which the workflow uses to decide whether to keep going:
+ *   0  posted, or nothing to do
+ *   1  this post failed; the next one can still go
+ *   75 hit Instagram's posting quota or a rate limit; stop quietly, try later
+ *   76 Instagram blocked the action; stop and flag it, a person should look
  */
 import { readFile, writeFile } from 'node:fs/promises';
 
@@ -22,11 +28,25 @@ const MODE = process.env.MODE || 'publish';
 // A post that fails twice is skipped so one bad listing cannot stall the queue.
 const MAX_ATTEMPTS = 2;
 // GitHub can delay scheduled runs, which sometimes bunches two together. Never
-// post twice inside this window, so the feed keeps its even spacing.
-const MIN_GAP_MINUTES = 45;
-// Metricool publishes its last free posts until 4:30 PM PDT on Sep 23; take
-// over from the 5:45 PM slot so the two never post side by side.
-const START_AT = '2026-09-24T00:40:00Z';
+// post twice inside this window, so the feed keeps its spacing. Burst runs set
+// their own spacing and pass 0.
+const MIN_GAP_MINUTES = Number(process.env.MIN_GAP_MINUTES ?? 8);
+// Leave a little of the rolling 24-hour API quota unused.
+const QUOTA_HEADROOM = 2;
+
+// Throttling and quota errors clear on their own; wait them out.
+const RATE_LIMIT_CODES = new Set([4, 9, 17, 32, 613]);
+const QUOTA_SUBCODES = new Set([2207042]);
+// A block or spam flag does not clear by retrying; stop and let a person look.
+const BLOCKED_CODES = new Set([368]);
+
+class ApiError extends Error {
+  constructor(message, code, subcode) {
+    super(message);
+    this.code = code;
+    this.subcode = subcode;
+  }
+}
 
 async function api(path, { method = 'GET', params = {} } = {}) {
   const body = new URLSearchParams({ ...params, access_token: TOKEN });
@@ -35,7 +55,10 @@ async function api(path, { method = 'GET', params = {} } = {}) {
   const json = await res.json().catch(() => ({}));
   if (!res.ok || json.error) {
     const e = json.error || {};
-    throw new Error(`${method} ${path.split('?')[0]} failed: ${e.message || res.status} (code ${e.code ?? '?'}${e.error_subcode ? '/' + e.error_subcode : ''})`);
+    throw new ApiError(
+      `${method} ${path.split('?')[0]} failed: ${e.message || res.status} (code ${e.code ?? '?'}${e.error_subcode ? '/' + e.error_subcode : ''})`,
+      e.code, e.error_subcode,
+    );
   }
   return json;
 }
@@ -68,6 +91,12 @@ async function createContainer(igId, post) {
   })).id;
 }
 
+async function quota(igId) {
+  const res = await api(`${igId}/content_publishing_limit`, { params: { fields: 'quota_usage,config' } });
+  const q = res.data?.[0] || {};
+  return { used: q.quota_usage ?? 0, total: q.config?.quota_total ?? 100 };
+}
+
 async function main() {
   if (!TOKEN) {
     console.log('IG_ACCESS_TOKEN is not set yet, so there is nothing to do. See README.md for setup.');
@@ -85,8 +114,8 @@ async function main() {
   console.log(`Account @${me.username}: ${done}/${posts.length} posted.`);
 
   if (MODE === 'check') {
-    const quota = await api(`${igId}/content_publishing_limit`, { params: { fields: 'quota_usage,config' } }).catch((e) => ({ error: e.message }));
-    console.log('Publishing quota (last 24h):', JSON.stringify(quota.data?.[0] || quota));
+    const q = await quota(igId).catch((e) => ({ error: e.message }));
+    console.log('Publishing quota (last 24h):', JSON.stringify(q));
     if (!next) return console.log('Queue is empty.');
     console.log(`Next up: ${next.title} (${next.media.length} photo${next.media.length > 1 ? 's' : ''})`);
     // Instagram's API takes JPEG only; make sure every photo arrives as one.
@@ -98,14 +127,20 @@ async function main() {
   }
 
   if (!next) return console.log('Queue is empty. All posts are published.');
-  if (Date.now() < Date.parse(START_AT)) return console.log(`Not starting until ${START_AT}.`);
 
   const last = Object.values(state).map((s) => s.at).filter(Boolean).sort().pop();
   if (last && Date.now() - Date.parse(last) < MIN_GAP_MINUTES * 60e3) {
     return console.log(`Last post went out at ${last}; waiting for the next slot to keep the spacing even.`);
   }
 
-  console.log(`Posting: ${next.title}`);
+  const q = await quota(igId);
+  if (q.used >= q.total - QUOTA_HEADROOM) {
+    console.log(`Instagram's 24-hour posting quota is nearly used (${q.used}/${q.total}); waiting for it to free up.`);
+    process.exitCode = 75;
+    return;
+  }
+
+  console.log(`Posting (${q.used + 1}/${q.total} in the last 24h): ${next.title}`);
   try {
     const container = await createContainer(igId, next);
     await waitUntilReady(container);
@@ -120,6 +155,18 @@ async function main() {
     }
     console.log(`Published: ${permalink || mediaId}`);
   } catch (err) {
+    // Limits and blocks say nothing about this post, so they don't count as
+    // one of its attempts; it will be first in line when posting resumes.
+    if (RATE_LIMIT_CODES.has(err.code) || QUOTA_SUBCODES.has(err.subcode)) {
+      console.log(`Instagram rate limit, will try again later: ${err.message}`);
+      process.exitCode = 75;
+      return;
+    }
+    if (BLOCKED_CODES.has(err.code)) {
+      console.error(`Instagram blocked the post. Stopping so a person can check the account: ${err.message}`);
+      process.exitCode = 76;
+      return;
+    }
     const attempts = (state[next.id]?.attempts || 0) + 1;
     state[next.id] = { status: 'failed', title: next.title, attempts, error: err.message, lastTried: new Date().toISOString() };
     await save();
