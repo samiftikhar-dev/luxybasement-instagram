@@ -56,11 +56,11 @@
   "permalink": "https://www.instagram.com/p/DdpLQeuD_3l/"
  },
  "-2209078670610053768": {
-  "status": "failed",
+  "status": "published",
   "title": "Gucci X DORAEMON Vintage GG Supreme Monogram Bucket Bag",
-  "attempts": 0,
-  "error": "POST 17841422120385409/media_publish failed: Media ID is not available (code 9007/2207027)",
-  "lastTried": "2026-09-23T20:39:46.254Z"
+  "mediaId": "18127321262500547",
+  "at": "2026-09-23T22:27:16.232Z",
+  "permalink": "https://www.instagram.com/p/DdpYWY0D_6j/"
  },
  "7945327566133151119": {
   "status": "published",
