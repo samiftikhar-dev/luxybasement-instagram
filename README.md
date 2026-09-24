@@ -24,14 +24,13 @@ Posts the LuxyBasement catalogue to Instagram, one piece every 90 minutes from 8
    Don't paste the token anywhere else.
 6. **Test it.** Open **Actions → Publish to Instagram → Run workflow**, choose `check` and run it. The log should show the account, the quota and the next piece's photos as `image/jpeg`. Nothing is posted.
 
-After that, the schedule posts on its own.
+After that, start a `drip` run (see below) and it posts on its own.
 
 ## Day to day
 
 - **Start or restart posting:** Actions → Publish to Instagram → Run workflow → `drip`, interval `90`. There is no automatic schedule, so nothing posts until a drip is running.
 - **Pace:** keep it gentle. On Sep 24 Meta blocked the app's API access after about 57 posts in under a day, including 20 in one hour. Regenerating the token cleared it.
-
-- **Pause:** Actions → Publish to Instagram → ⋯ → **Disable workflow**. Enable it again to resume from where it stopped.
+- **Pause:** open the running drip under Actions and click **Cancel workflow run**. Start a new drip to resume; it picks up where it stopped.
 - **Post the next piece now:** Run workflow → `publish`.
 - **Post several in a row:** Run workflow → `burst`, then set how many and the minutes between them.
 - **Blocked by Instagram:** the run fails and GitHub emails you. Posting stops until you re-run it. Check the Instagram app for a warning before resuming.
