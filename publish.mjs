@@ -38,7 +38,9 @@ const QUOTA_HEADROOM = 2;
 const RATE_LIMIT_CODES = new Set([4, 9, 17, 32, 613]);
 const QUOTA_SUBCODES = new Set([2207042]);
 // A block or spam flag does not clear by retrying; stop and let a person look.
-const BLOCKED_CODES = new Set([368]);
+// 190 is an expired or revoked token; 10 and 200 are permission errors, which
+// is how Meta reports "API access blocked" when it restricts the app.
+const BLOCKED_CODES = new Set([368, 190, 10, 200]);
 
 class ApiError extends Error {
   constructor(message, code, subcode) {
@@ -237,5 +239,7 @@ async function main() {
 
 main().catch((err) => {
   console.error(err.message);
-  process.exitCode = 1;
+  // Blocks and dead tokens (usually from the first call, "me") must stop a
+  // burst or drip, not let it loop quietly retrying.
+  process.exitCode = BLOCKED_CODES.has(err.code) ? 76 : 1;
 });
