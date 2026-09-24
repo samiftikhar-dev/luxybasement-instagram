@@ -33,6 +33,11 @@ const MAX_ATTEMPTS = 2;
 const MIN_GAP_MINUTES = Number(process.env.MIN_GAP_MINUTES ?? 8);
 // Leave a little of the rolling 24-hour API quota unused.
 const QUOTA_HEADROOM = 2;
+// No posts overnight, Pacific time: a feed that posts at 3am reads as a bot,
+// and an unbroken 24-hour cadence is what got the app blocked on Sep 24.
+// POST_HOURS=8-23 means from 8:00 until 22:59.
+const [FIRST_HOUR, LAST_HOUR] = (process.env.POST_HOURS || '8-23').split('-').map(Number);
+const pacificHour = () => Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', hourCycle: 'h23' }).format(new Date()));
 
 // Throttling and quota errors clear on their own; wait them out.
 const RATE_LIMIT_CODES = new Set([4, 9, 17, 32, 613]);
@@ -178,6 +183,11 @@ async function main() {
   }
 
   if (!next) return console.log('Queue is empty. All posts are published.');
+
+  const hour = pacificHour();
+  if (hour < FIRST_HOUR || hour >= LAST_HOUR) {
+    return console.log(`Outside posting hours (${FIRST_HOUR}:00-${LAST_HOUR}:00 Pacific); waiting.`);
+  }
 
   const last = Object.values(state).map((s) => s.at).filter(Boolean).sort().pop();
   if (last && Date.now() - Date.parse(last) < MIN_GAP_MINUTES * 60e3) {

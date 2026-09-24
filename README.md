@@ -1,6 +1,6 @@
 # LuxyBasement Instagram publisher
 
-Posts the LuxyBasement catalogue to Instagram, five an hour (one every 12 minutes). It's free: it runs on GitHub Actions and posts through Instagram's own API. Instagram allows 100 API posts per rolling 24 hours, so when that quota fills, posting pauses until it frees up.
+Posts the LuxyBasement catalogue to Instagram, one piece every 90 minutes from 8am to 11pm Pacific (about 10 a day), started as a self-restarting "drip" run from the Actions tab. It's free: it runs on GitHub Actions and posts through Instagram's own API. Instagram allows 100 API posts per rolling 24 hours, so when that quota fills, posting pauses until it frees up.
 
 - `posts.json` is the queue, in posting order: caption, photos and hashtags for each piece.
 - `published.json` records what has gone out. The workflow updates it after every post.
@@ -27,6 +27,9 @@ Posts the LuxyBasement catalogue to Instagram, five an hour (one every 12 minute
 After that, the schedule posts on its own.
 
 ## Day to day
+
+- **Start or restart posting:** Actions → Publish to Instagram → Run workflow → `drip`, interval `90`. There is no automatic schedule, so nothing posts until a drip is running.
+- **Pace:** keep it gentle. On Sep 24 Meta blocked the app's API access after about 57 posts in under a day, including 20 in one hour. Regenerating the token cleared it.
 
 - **Pause:** Actions → Publish to Instagram → ⋯ → **Disable workflow**. Enable it again to resume from where it stopped.
 - **Post the next piece now:** Run workflow → `publish`.
