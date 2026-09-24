@@ -173,5 +173,12 @@
   "mediaId": "18137362297617068",
   "at": "2026-09-23T23:56:30.251Z",
   "permalink": "https://www.instagram.com/p/DdpikHzD8fl/"
+ },
+ "9089916784412607795": {
+  "status": "failed",
+  "title": "Hermès Enamel Uni Bangle",
+  "attempts": 1,
+  "error": "POST 17841422120385409/media failed: Only photo or video can be accepted as media type. (code 9004/2207052)",
+  "lastTried": "2026-09-24T00:08:44.133Z"
  }
 }
