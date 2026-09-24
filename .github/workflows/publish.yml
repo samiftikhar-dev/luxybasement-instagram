@@ -1,10 +1,9 @@
 name: Publish to Instagram
 
 on:
-  schedule:
-    # Backup trigger. GitHub fires frequent schedules unreliably (sometimes
-    # hours apart), so the main driver is the self-restarting "drip" run below.
-    - cron: '6,18,30,42,54 * * * *'
+  # Manual only. Posting runs as a self-restarting "drip" started from the
+  # Actions tab; there is no cron, so enabling the workflow never posts by
+  # itself. (GitHub fired frequent schedules unreliably anyway.)
   workflow_dispatch:
     inputs:
       mode:
