@@ -189,11 +189,12 @@ async function main() {
     return;
   }
 
-  // A retry of a post that errored last time may already be live.
-  if (state[next.id]?.status === 'failed') {
+  // Never trust the record alone: a retry, or a run working from an old copy
+  // of published.json, may be about to post something already live.
+  {
     const live = (await recentByHeadline(igId, 25)).get(headline(next));
     if (live) {
-      state[next.id] = { status: 'published', title: next.title, mediaId: live.id, at: live.timestamp, permalink: live.permalink, note: 'went up despite an error' };
+      state[next.id] = { status: 'published', title: next.title, mediaId: live.id, at: live.timestamp, permalink: live.permalink, note: 'found already on the account' };
       await save();
       return console.log(`Already on the account, not posting again: ${live.permalink}`);
     }

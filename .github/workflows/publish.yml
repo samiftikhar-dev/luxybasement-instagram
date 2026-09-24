@@ -2,28 +2,29 @@ name: Publish to Instagram
 
 on:
   schedule:
-    # Five posts an hour, every 12 minutes, around the clock. Offset from the
-    # top of the hour, when GitHub's scheduler is busiest and runs start late.
+    # Backup trigger. GitHub fires frequent schedules unreliably (sometimes
+    # hours apart), so the main driver is the self-restarting "drip" run below.
     - cron: '6,18,30,42,54 * * * *'
   workflow_dispatch:
     inputs:
       mode:
-        description: 'check = test the connection without posting; publish = post the next piece now; burst = post several in a row; reconcile = match failed posts against the account'
+        description: 'check = test without posting; publish = post the next piece now; burst = post several in a row; drip = post steadily and keep restarting until the queue is empty; reconcile = match failed posts against the account'
         type: choice
-        options: [check, publish, burst, reconcile]
+        options: [check, publish, burst, drip, reconcile]
         default: check
       count:
         description: 'burst only: how many to post'
         default: '20'
       interval_minutes:
-        description: 'burst only: minutes between posts'
-        default: '3'
+        description: 'burst and drip: minutes between posts'
+        default: '12'
 
 permissions:
   contents: write
+  actions: write
 
 # Never let two runs post at the same time. Scheduled runs that fire during a
-# burst wait for it to finish.
+# burst or drip wait for it to finish.
 concurrency:
   group: instagram-publish
   cancel-in-progress: false
@@ -31,9 +32,14 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    # GitHub's maximum. A drip run stops itself well before this and restarts.
+    timeout-minutes: 355
     steps:
+      # Always the latest main, not the commit the run was queued on, so a run
+      # that waited in the queue still sees every post recorded since.
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - uses: actions/setup-node@v4
         with:
@@ -42,9 +48,10 @@ jobs:
       - name: Post
         env:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           MODE: ${{ github.event.inputs.mode || 'publish' }}
           COUNT: ${{ github.event.inputs.count || '1' }}
-          INTERVAL: ${{ github.event.inputs.interval_minutes || '3' }}
+          INTERVAL: ${{ github.event.inputs.interval_minutes || '12' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -58,8 +65,12 @@ jobs:
               git push -q
             fi
           }
+          # Queue is done when every post is published, or failed out.
+          remaining() {
+            node -e "const p=require('./posts.json'),s=require('./published.json');console.log(p.filter(x=>!s[x.id]||(s[x.id].status==='failed'&&s[x.id].attempts<2)).length)"
+          }
 
-          if [ "$MODE" != burst ]; then
+          if [ "$MODE" = check ] || [ "$MODE" = publish ] || [ "$MODE" = reconcile ]; then
             rc=0; node publish.mjs || rc=$?
             save
             # 75 is a quota or rate-limit pause, which is expected, not a failure.
@@ -67,10 +78,22 @@ jobs:
             exit $rc
           fi
 
-          for i in $(seq 1 "$COUNT"); do
-            rc=0; MODE=publish MIN_GAP_MINUTES=0 node publish.mjs || rc=$?
+          # burst: COUNT posts. drip: as many as fit in ~5 hours, then restart.
+          started=$(date +%s)
+          i=0
+          while :; do
+            i=$((i + 1))
+            git pull -q --rebase
+            rc=0; MODE=publish MIN_GAP_MINUTES=$(( INTERVAL > 2 ? INTERVAL - 2 : 0 )) node publish.mjs || rc=$?
             save
-            if [ "$rc" = 75 ]; then echo "Quota or rate limit reached; the schedule resumes later."; exit 0; fi
             if [ "$rc" = 76 ]; then exit 1; fi
-            if [ "$i" -lt "$COUNT" ]; then sleep $(( INTERVAL * 60 )); fi
+            if [ "$(remaining)" = 0 ]; then echo "Queue finished."; exit 0; fi
+            if [ "$MODE" = burst ] && [ "$i" -ge "$COUNT" ]; then exit 0; fi
+            if [ "$MODE" = drip ] && [ $(( $(date +%s) - started )) -gt $(( 300 * 60 )) ]; then
+              echo "Restarting to stay inside GitHub's time limit."
+              gh workflow run publish.yml --ref main -f mode=drip -f interval_minutes="$INTERVAL"
+              exit 0
+            fi
+            # A quota pause (75) just waits for the next interval like any other.
+            sleep $(( INTERVAL * 60 ))
           done
