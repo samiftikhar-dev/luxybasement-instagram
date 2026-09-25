@@ -516,5 +516,12 @@
   "mediaId": "17973273765167589",
   "at": "2026-09-25T05:21:04.302Z",
   "permalink": "https://www.instagram.com/p/DdssiP-joc2/"
+ },
+ "-3346078614451961694": {
+  "status": "failed",
+  "title": "Chloe Blue Suede Hannah Over-The-Knee Boots 36",
+  "attempts": 1,
+  "error": "POST 17841422120385409/media_publish failed: An unexpected error has occurred. Please retry your request later. (code 2)",
+  "lastTried": "2026-09-25T05:42:09.384Z"
  }
 }
