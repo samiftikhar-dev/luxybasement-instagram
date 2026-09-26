@@ -1,9 +1,11 @@
 name: Publish to Instagram
 
 on:
-  # Manual only. Posting runs as a self-restarting "drip" started from the
-  # Actions tab; there is no cron, so enabling the workflow never posts by
-  # itself. (GitHub fired frequent schedules unreliably anyway.)
+  # Watchdog only: it never posts, it just restarts the drip if the drip has
+  # died (GitHub occasionally shuts a runner down mid-run). GitHub fires
+  # frequent schedules unreliably, which is fine for a safety net.
+  schedule:
+    - cron: '*/15 * * * *'
   workflow_dispatch:
     inputs:
       mode:
@@ -16,21 +18,46 @@ on:
         default: '20'
       interval_minutes:
         description: 'burst and drip: minutes between posts'
-        default: '12'
+        default: '20'
 
 permissions:
   contents: write
   actions: write
 
-# Never let two runs post at the same time. Scheduled runs that fire during a
-# burst or drip wait for it to finish.
-concurrency:
-  group: instagram-publish
-  cancel-in-progress: false
+env:
+  # Pace the watchdog restarts with.
+  DRIP_INTERVAL: '20'
 
 jobs:
-  publish:
+  watchdog:
+    if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Restart the drip if it has stopped
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -f blocked.txt ]; then
+            echo "Posting stopped after an Instagram block; not restarting:"; cat blocked.txt; exit 0
+          fi
+          left=$(node -e "const p=require('./posts.json'),s=require('./published.json');console.log(p.filter(x=>!s[x.id]||(s[x.id].status==='failed'&&s[x.id].attempts<2)).length)")
+          if [ "$left" = 0 ]; then echo "Queue finished."; exit 0; fi
+          active=$(gh run list -R "$GITHUB_REPOSITORY" -w publish.yml -e workflow_dispatch -L 20 --json status --jq '[.[]|select(.status!="completed")]|length')
+          if [ "$active" != 0 ]; then echo "A run is active; nothing to do."; exit 0; fi
+          echo "No drip running and $left posts left; restarting it."
+          gh workflow run publish.yml --ref main -f mode=drip -f interval_minutes="$DRIP_INTERVAL"
+
+  publish:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    # Never let two runs post at the same time.
+    concurrency:
+      group: instagram-publish
+      cancel-in-progress: false
     # GitHub's maximum. A drip run stops itself well before this and restarts.
     timeout-minutes: 355
     steps:
@@ -50,7 +77,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           MODE: ${{ github.event.inputs.mode || 'publish' }}
           COUNT: ${{ github.event.inputs.count || '1' }}
-          INTERVAL: ${{ github.event.inputs.interval_minutes || '12' }}
+          INTERVAL: ${{ github.event.inputs.interval_minutes || '20' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -83,9 +110,18 @@ jobs:
           while :; do
             i=$((i + 1))
             git pull -q --rebase
-            rc=0; MODE=publish MIN_GAP_MINUTES=$(( INTERVAL > 2 ? INTERVAL - 2 : 0 )) node publish.mjs || rc=$?
+            set +e
+            MODE=publish MIN_GAP_MINUTES=$(( INTERVAL > 2 ? INTERVAL - 2 : 0 )) node publish.mjs 2>&1 | tee run.log
+            rc=${PIPESTATUS[0]}
+            set -e
             save
-            if [ "$rc" = 76 ]; then exit 1; fi
+            if [ "$rc" = 76 ]; then
+              # Leave a marker so the watchdog doesn't keep hammering a block.
+              # Delete blocked.txt once the block is cleared.
+              { date -u +%FT%TZ; tail -3 run.log; } > blocked.txt
+              git add blocked.txt && git commit -qm "Stop posting: Instagram blocked the account or token" && git pull -q --rebase && git push -q
+              exit 1
+            fi
             if [ "$(remaining)" = 0 ]; then echo "Queue finished."; exit 0; fi
             if [ "$MODE" = burst ] && [ "$i" -ge "$COUNT" ]; then exit 0; fi
             if [ "$MODE" = drip ] && [ $(( $(date +%s) - started )) -gt $(( 300 * 60 )) ]; then

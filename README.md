@@ -5,7 +5,7 @@ Posts the LuxyBasement catalogue to Instagram, one piece every 90 minutes from 8
 - `posts.json` is the queue, in posting order: caption, photos and hashtags for each piece.
 - `published.json` records what has gone out. The workflow updates it after every post.
 - `publish.mjs` is the script that posts.
-- `.github/workflows/publish.yml` is the schedule.
+- `.github/workflows/publish.yml` runs the drip and the watchdog.
 
 ## One-time setup
 
@@ -28,12 +28,12 @@ After that, start a `drip` run (see below) and it posts on its own.
 
 ## Day to day
 
-- **Start or restart posting:** Actions → Publish to Instagram → Run workflow → `drip`, interval `90`. There is no automatic schedule, so nothing posts until a drip is running.
+- **Start or restart posting:** Actions → Publish to Instagram → Run workflow → `drip`, interval `20`. A watchdog checks every 15 minutes and restarts the drip if it has stopped (for example when GitHub shuts a runner down), so normally you never need to.
 - **Pace:** keep it gentle. On Sep 24 Meta blocked the app's API access after about 57 posts in under a day, including 20 in one hour. Regenerating the token cleared it.
-- **Pause:** open the running drip under Actions and click **Cancel workflow run**. Start a new drip to resume; it picks up where it stopped.
+- **Pause:** Actions → Publish to Instagram → ⋯ → **Disable workflow**, then cancel the running drip. Disabling stops the watchdog too. Enable the workflow and start a drip to resume.
 - **Post the next piece now:** Run workflow → `publish`.
 - **Post several in a row:** Run workflow → `burst`, then set how many and the minutes between them.
-- **Blocked by Instagram:** the run fails and GitHub emails you. Posting stops until you re-run it. Check the Instagram app for a warning before resuming.
+- **Blocked by Instagram:** the drip stops, commits `blocked.txt` with the error, and GitHub emails you. The watchdog won't restart while `blocked.txt` exists. Fix the cause (usually a fresh token), delete `blocked.txt`, and the watchdog resumes posting.
 - **A piece sold:** delete its entry from `posts.json`. Its `id` is the same uuid the post had in Metricool.
 - **Failures:** a post that fails twice is skipped and the queue moves on. `published.json` records the error.
 - **Token expiry:** the token lasts 60 days. Generate a new one the same way before then and update the secret.
