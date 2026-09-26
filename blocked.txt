@@ -1,0 +1,4 @@
+2026-09-26T18:32:12Z
+GET me failed: API access blocked. (code 200)
+Second Meta block, found 2026-09-26 11:30 PT after ~61 posts on Sep 25 at one every 20 min.
+Delete this file after generating a fresh token to resume.
