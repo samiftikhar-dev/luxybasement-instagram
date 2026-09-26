@@ -1,6 +1,6 @@
 # LuxyBasement Instagram publisher
 
-Posts the LuxyBasement catalogue to Instagram, one piece every 90 minutes from 8am to 11pm Pacific (about 10 a day), started as a self-restarting "drip" run from the Actions tab. It's free: it runs on GitHub Actions and posts through Instagram's own API. Instagram allows 100 API posts per rolling 24 hours, so when that quota fills, posting pauses until it frees up.
+Posts the LuxyBasement catalogue to Instagram, one piece every 20 minutes from 8am to 11pm Pacific (about 45 a day), started as a self-restarting "drip" run from the Actions tab. It's free: it runs on GitHub Actions and posts through Instagram's own API. Instagram allows 100 API posts per rolling 24 hours, so when that quota fills, posting pauses until it frees up.
 
 - `posts.json` is the queue, in posting order: caption, photos and hashtags for each piece.
 - `published.json` records what has gone out. The workflow updates it after every post.
