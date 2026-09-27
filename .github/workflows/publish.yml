@@ -18,7 +18,7 @@ on:
         default: '20'
       interval_minutes:
         description: 'burst and drip: minutes between posts'
-        default: '20'
+        default: '90'
 
 permissions:
   contents: write
@@ -26,7 +26,7 @@ permissions:
 
 env:
   # Pace the watchdog restarts with.
-  DRIP_INTERVAL: '20'
+  DRIP_INTERVAL: '90'
 
 jobs:
   watchdog:
@@ -77,7 +77,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           MODE: ${{ github.event.inputs.mode || 'publish' }}
           COUNT: ${{ github.event.inputs.count || '1' }}
-          INTERVAL: ${{ github.event.inputs.interval_minutes || '20' }}
+          INTERVAL: ${{ github.event.inputs.interval_minutes || '90' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

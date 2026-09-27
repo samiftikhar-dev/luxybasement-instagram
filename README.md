@@ -1,6 +1,6 @@
 # LuxyBasement Instagram publisher
 
-Posts the LuxyBasement catalogue to Instagram, one piece every 20 minutes from 8am to 11pm Pacific (about 45 a day), started as a self-restarting "drip" run from the Actions tab. It's free: it runs on GitHub Actions and posts through Instagram's own API. Instagram allows 100 API posts per rolling 24 hours, so when that quota fills, posting pauses until it frees up.
+Posts the LuxyBasement catalogue to Instagram, one piece every 90 minutes from 8am to 11pm Pacific (about 10 a day), started as a self-restarting "drip" run from the Actions tab. It's free: it runs on GitHub Actions and posts through Instagram's own API. Instagram allows 100 API posts per rolling 24 hours, so when that quota fills, posting pauses until it frees up.
 
 - `posts.json` is the queue, in posting order: caption, photos and hashtags for each piece.
 - `published.json` records what has gone out. The workflow updates it after every post.
@@ -28,8 +28,8 @@ After that, start a `drip` run (see below) and it posts on its own.
 
 ## Day to day
 
-- **Start or restart posting:** Actions → Publish to Instagram → Run workflow → `drip`, interval `20`. A watchdog checks every 15 minutes and restarts the drip if it has stopped (for example when GitHub shuts a runner down), so normally you never need to.
-- **Pace:** keep it gentle. On Sep 24 Meta blocked the app's API access after about 57 posts in under a day, including 20 in one hour. Regenerating the token cleared it.
+- **Start or restart posting:** Actions → Publish to Instagram → Run workflow → `drip`, interval `90`. A watchdog checks every 15 minutes and restarts the drip if it has stopped (for example when GitHub shuts a runner down), so normally you never need to.
+- **Pace:** keep it gentle. On Sep 24 Meta blocked the app's API access after about 57 posts in under a day, including 20 in one hour. Regenerating the token cleared it. It happened again on Sep 25 at one post every 20 minutes (about 60 that day), so 90 minutes is the pace to keep.
 - **Pause:** Actions → Publish to Instagram → ⋯ → **Disable workflow**, then cancel the running drip. Disabling stops the watchdog too. Enable the workflow and start a drip to resume.
 - **Post the next piece now:** Run workflow → `publish`.
 - **Post several in a row:** Run workflow → `burst`, then set how many and the minutes between them.
