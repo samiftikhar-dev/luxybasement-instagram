@@ -1055,5 +1055,12 @@
   "mediaId": "18159154795498799",
   "at": "2026-09-29T19:55:34.779Z",
   "permalink": "https://www.instagram.com/p/Dd4jws5jzbj/"
+ },
+ "-3432727657989323830": {
+  "status": "failed",
+  "title": "Isabel Marant Brown Leather Rica Studded Belt 80",
+  "attempts": 1,
+  "error": "POST 17841422120385409/media failed: Only photo or video can be accepted as media type. (code 9004/2207052)",
+  "lastTried": "2026-09-29T20:25:48.650Z"
  }
 }
