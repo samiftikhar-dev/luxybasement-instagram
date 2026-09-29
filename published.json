@@ -1030,10 +1030,16 @@
   "permalink": "https://www.instagram.com/p/Dd4VxZiidhw/"
  },
  "-311069664496367202": {
-  "status": "failed",
+  "status": "published",
   "title": "Hermes Mykonos Blue Niloticus Lizard Rose Gold Plated Collier de Chien Bracelet",
-  "attempts": 1,
-  "error": "POST 17841422120385409/media failed: Only photo or video can be accepted as media type. (code 9004/2207052)",
-  "lastTried": "2026-09-29T18:23:10.412Z"
+  "mediaId": "18628015525049022",
+  "at": "2026-09-29T18:54:06.893Z",
+  "permalink": "https://www.instagram.com/p/Dd4cuUcD9ba/"
+ },
+ "-112440317321984006": {
+  "status": "sold",
+  "title": "Louis Vuitton Double Card Holder in Monogram Eclipse",
+  "note": "out of stock in the shop",
+  "seen": "2026-09-29T18:53:13.307Z"
  }
 }
