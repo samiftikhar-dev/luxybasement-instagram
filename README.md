@@ -5,6 +5,7 @@ Posts the LuxyBasement catalogue to Instagram, one piece every 30 minutes from 8
 - `posts.json` is the queue, in posting order: caption, photos and hashtags for each piece.
 - `published.json` records what has gone out. The workflow updates it after every post.
 - `publish.mjs` is the script that posts.
+- `feed.mjs` reads the shop's product feed and writes captions for new listings.
 - `.github/workflows/publish.yml` runs the drip and the watchdog.
 
 ## One-time setup
@@ -34,6 +35,7 @@ After that, start a `drip` run (see below) and it posts on its own.
 - **Post the next piece now:** Run workflow → `publish`.
 - **Post several in a row:** Run workflow → `burst`, then set how many and the minutes between them.
 - **Blocked by Instagram:** the drip stops, commits `blocked.txt` with the error, and GitHub emails you. The watchdog won't restart while `blocked.txt` exists. Fix the cause (usually a fresh token), delete `blocked.txt`, and the watchdog resumes posting.
-- **A piece sold:** delete its entry from `posts.json`. Its `id` is the same uuid the post had in Metricool.
+- **A piece sold:** nothing to do. Before every post the publisher reads the shop's product feed (luxybasement.com/feed.xml, refreshed every 30 minutes) and skips anything out of stock or unlisted, recording it as `sold` in `published.json`.
+- **New listings:** nothing to do. Anything newly in stock on the shop is captioned in house style and queued first. `known.json` lists every product ever queued, so older pieces are never re-added.
 - **Failures:** a post that fails twice is skipped and the queue moves on. `published.json` records the error.
 - **Token expiry:** the token lasts 60 days. Generate a new one the same way before then and update the secret.

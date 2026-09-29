@@ -20,6 +20,7 @@
  *   76 Instagram blocked the action; stop and flag it, a person should look
  */
 import { readFile, writeFile } from 'node:fs/promises';
+import { loadFeed, captionFor, photosFor, postTitle } from './feed.mjs';
 
 const API = 'https://graph.instagram.com/v23.0';
 const TOKEN = process.env.IG_ACCESS_TOKEN;
@@ -122,6 +123,45 @@ async function recentByHeadline(igId, limit = 50) {
 }
 const headline = (post) => post.caption.split('\n')[0];
 
+/**
+ * Bring the queue in line with the shop before choosing what to post:
+ * - a queued piece that has sold, or left the shop, is marked "sold" and skipped
+ * - a newly listed piece goes to the front of the queue, since "just landed"
+ *   is when a post does the most good
+ * known.json holds every handle ever queued, so nothing that was already
+ * posted (including through Metricool, before this repo) comes back as new.
+ * Returns true when posts.json or known.json changed.
+ */
+async function syncWithShop(posts, state, known) {
+  const feed = await loadFeed();
+  if (!feed) return false;
+  const byHandle = new Map(feed.map((i) => [i.handle, i]));
+  let changed = false;
+
+  for (const p of posts) {
+    if (state[p.id] || !p.handle) continue;
+    const item = byHandle.get(p.handle);
+    if (!item || !item.inStock) {
+      state[p.id] = { status: 'sold', title: p.title, note: item ? 'out of stock in the shop' : 'no longer in the shop', seen: new Date().toISOString() };
+      console.log(`Skipping, no longer available: ${p.title}`);
+    }
+  }
+
+  const fresh = feed.filter((i) => i.inStock && !known.has(i.handle));
+  for (const item of fresh.reverse()) {
+    const media = photosFor(item);
+    known.add(item.handle);
+    changed = true;
+    if (!media.length) {
+      console.log(`New listing has no usable photo, not queued: ${item.title}`);
+      continue;
+    }
+    posts.unshift({ id: `shop:${item.handle}`, handle: item.handle, title: postTitle(item.title), caption: captionFor(item, known.size), media });
+    console.log(`New listing queued first: ${item.title}`);
+  }
+  return changed;
+}
+
 async function quota(igId) {
   const res = await api(`${igId}/content_publishing_limit`, { params: { fields: 'quota_usage,config' } });
   const q = res.data?.[0] || {};
@@ -136,7 +176,19 @@ async function main() {
 
   const posts = JSON.parse(await readFile('posts.json', 'utf8'));
   const state = JSON.parse(await readFile('published.json', 'utf8'));
+  const known = new Set(JSON.parse(await readFile('known.json', 'utf8')));
   const save = () => writeFile('published.json', JSON.stringify(state, null, 1) + '\n');
+
+  // Check mode reports what the sync would do but writes nothing.
+  const queueChanged = MODE !== 'reconcile' && await syncWithShop(posts, state, known);
+  if (MODE === 'publish') {
+    if (queueChanged) {
+      await writeFile('posts.json', JSON.stringify(posts, null, 1) + '\n');
+      await writeFile('known.json', JSON.stringify([...known].sort(), null, 1) + '\n');
+    }
+    // Sold marks are worth keeping even when this run posts nothing.
+    await save();
+  }
 
   const me = await api('me', { params: { fields: 'user_id,username' } });
   const igId = me.user_id || me.id;

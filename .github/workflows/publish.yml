@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'check = test without posting; publish = post the next piece now; burst = post several in a row; drip = post steadily and keep restarting until the queue is empty; reconcile = match failed posts against the account'
+        description: 'check = test without posting; publish = post the next piece now; burst = post several in a row; drip = post steadily, keep restarting, and pick up new listings; reconcile = match failed posts against the account'
         type: choice
         options: [check, publish, burst, drip, reconcile]
         default: check
@@ -44,11 +44,9 @@ jobs:
           if [ -f blocked.txt ]; then
             echo "Posting stopped after an Instagram block; not restarting:"; cat blocked.txt; exit 0
           fi
-          left=$(node -e "const p=require('./posts.json'),s=require('./published.json');console.log(p.filter(x=>!s[x.id]||(s[x.id].status==='failed'&&s[x.id].attempts<2)).length)")
-          if [ "$left" = 0 ]; then echo "Queue finished."; exit 0; fi
           active=$(gh run list -R "$GITHUB_REPOSITORY" -w publish.yml -e workflow_dispatch -L 20 --json status --jq '[.[]|select(.status!="completed")]|length')
           if [ "$active" != 0 ]; then echo "A run is active; nothing to do."; exit 0; fi
-          echo "No drip running and $left posts left; restarting it."
+          echo "No drip running; restarting it."
           gh workflow run publish.yml --ref main -f mode=drip -f interval_minutes="$DRIP_INTERVAL"
 
   publish:
@@ -84,16 +82,12 @@ jobs:
           # Commit progress after every post, so a cancelled run never loses
           # track of what already went out.
           save() {
-            git add published.json
+            git add published.json posts.json known.json
             if ! git diff --cached --quiet; then
               git commit -qm "Record Instagram post"
               git pull -q --rebase
               git push -q
             fi
-          }
-          # Queue is done when every post is published, or failed out.
-          remaining() {
-            node -e "const p=require('./posts.json'),s=require('./published.json');console.log(p.filter(x=>!s[x.id]||(s[x.id].status==='failed'&&s[x.id].attempts<2)).length)"
           }
 
           if [ "$MODE" = check ] || [ "$MODE" = publish ] || [ "$MODE" = reconcile ]; then
@@ -104,7 +98,8 @@ jobs:
             exit $rc
           fi
 
-          # burst: COUNT posts. drip: as many as fit in ~5 hours, then restart.
+          # burst: COUNT posts. drip: runs indefinitely, restarting every ~5 hours;
+          # once the queue is empty it keeps checking the shop for new listings.
           started=$(date +%s)
           i=0
           while :; do
@@ -122,7 +117,6 @@ jobs:
               git add blocked.txt && git commit -qm "Stop posting: Instagram blocked the account or token" && git pull -q --rebase && git push -q
               exit 1
             fi
-            if [ "$(remaining)" = 0 ]; then echo "Queue finished."; exit 0; fi
             if [ "$MODE" = burst ] && [ "$i" -ge "$COUNT" ]; then exit 0; fi
             if [ "$MODE" = drip ] && [ $(( $(date +%s) - started )) -gt $(( 300 * 60 )) ]; then
               echo "Restarting to stay inside GitHub's time limit."
