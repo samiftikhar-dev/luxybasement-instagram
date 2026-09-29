@@ -1028,5 +1028,12 @@
   "mediaId": "17958391113239285",
   "at": "2026-09-29T17:53:02.169Z",
   "permalink": "https://www.instagram.com/p/Dd4VxZiidhw/"
+ },
+ "-311069664496367202": {
+  "status": "failed",
+  "title": "Hermes Mykonos Blue Niloticus Lizard Rose Gold Plated Collier de Chien Bracelet",
+  "attempts": 1,
+  "error": "POST 17841422120385409/media failed: Only photo or video can be accepted as media type. (code 9004/2207052)",
+  "lastTried": "2026-09-29T18:23:10.412Z"
  }
 }
