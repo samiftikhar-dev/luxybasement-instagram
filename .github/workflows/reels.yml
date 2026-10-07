@@ -1,7 +1,7 @@
 name: Instagram Reels
 
-# Builds Reels from the shop's photos with ffmpeg (built into GitHub's Ubuntu
-# runners) and posts them. Separate from publish.yml so a long drip run never
+# Builds Reels from the shop's photos with ffmpeg (installed on the free GitHub
+# runner each time) and posts them. Separate from publish.yml so a long drip run never
 # holds a Reel back.
 on:
   workflow_dispatch:
@@ -37,6 +37,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg > /dev/null
 
       - name: Build or post
         env:

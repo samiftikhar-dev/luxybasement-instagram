@@ -11,7 +11,7 @@
  * offers line. Everything sits inside Instagram's Reels safe zone, clear of the
  * caption and buttons Instagram draws over the bottom and right edge.
  *
- * Rendering needs ffmpeg, which GitHub's Ubuntu runners have built in. Fonts
+ * Rendering needs ffmpeg; the workflow installs it on the GitHub runner. Fonts
  * are the site's own (Playfair Display, Space Grotesk; OFL, in fonts/).
  *
  * MODE=preview  render REEL_COUNT reels (or the pieces in HANDLES) to previews/.
