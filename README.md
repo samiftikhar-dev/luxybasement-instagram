@@ -35,7 +35,7 @@ After that, start a `drip` run (see below) and it posts on its own.
 2. **Get a token.** In https://developers.facebook.com/tools/explorer choose **AutoSocialPoster**, choose **User Token**, add the same six permissions, and click **Generate Access Token**. When Facebook asks, allow the LuxyBasement Page, @luxybasement and the "LuxyBasement Products" catalogue.
 3. **Make it last 60 days.** Copy the token into https://developers.facebook.com/tools/debug/accesstoken, click **Debug**, then **Extend Access Token**, and copy the long-lived token it shows.
 4. **Store it in GitHub** as a repository secret named `FB_ACCESS_TOKEN`. Don't paste it anywhere else.
-5. **Tag the backlog:** Actions → Publish to Instagram → Run workflow → `tag`, count `25`. Each run tags up to that many posts, newest first, 20 seconds apart. Run it again until the log says nothing is left.
+5. **Tag the backlog:** nothing to do. The "Tag Instagram posts with products" workflow runs every hour and tags up to 25 posts per run, newest first, 20 seconds apart. To speed it up, run it by hand from the Actions tab. It has its own workflow so it never waits behind a posting run.
 
 After that, every drip post is tagged straight after it goes up, and the drip also clears a couple of older posts each time. `tags.json` records what has been tagged. Sold pieces are skipped. Like the posting token, this one lasts 60 days.
 

@@ -1,0 +1,51 @@
+name: Tag Instagram posts with products
+
+# Separate from publish.yml so tagging never queues behind a drip run, which
+# holds publish.yml's concurrency group for hours at a time.
+on:
+  workflow_dispatch:
+    inputs:
+      count:
+        description: 'How many posts to tag (newest first, 20 seconds apart)'
+        default: '25'
+  # Clears the backlog a batch at a time and catches anything the drip missed.
+  schedule:
+    - cron: '7 * * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: instagram-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Tag
+        env:
+          FB_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
+          TAG_LIMIT: ${{ github.event.inputs.count || '25' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rc=0; node tag.mjs || rc=$?
+          if [ -f tags.json ]; then
+            git add tags.json
+            if ! git diff --cached --quiet; then
+              git commit -qm "Record Instagram product tags"
+              git pull -q --rebase
+              git push -q
+            fi
+          fi
+          exit $rc
