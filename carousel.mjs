@@ -81,23 +81,23 @@ function themes(stock) {
 function pickTheme(stock, done, wanted) {
   const usable = stock.filter((i) => photosFor(i).length >= 1);
   const all = themes(usable);
-  if (wanted) return all.find((t) => t.key === wanted);
+  const published = done.filter((d) => d.status === 'published');
+  const featured = new Map();
+  for (const d of published) for (const h of d.handles || []) featured.set(h, (featured.get(h) || 0) + 1);
+  const fill = (theme) => theme && {
+    ...theme,
+    items: [...theme.items]
+      .sort((a, b) => (featured.get(a.handle) || 0) - (featured.get(b.handle) || 0) || b.price - a.price)
+      .slice(0, MAX_PIECES),
+  };
+  if (wanted) return fill(all.find((t) => t.key === wanted));
 
   const now = Date.now();
-  done = done.filter((d) => d.status === 'published');
-  const lastUsed = (key) => Math.max(0, ...done.filter((d) => d.theme === key).map((d) => Date.parse(d.at)));
-  const featured = new Map();
-  for (const d of done) for (const h of d.handles || []) featured.set(h, (featured.get(h) || 0) + 1);
-
+  const lastUsed = (key) => Math.max(0, ...published.filter((d) => d.theme === key).map((d) => Date.parse(d.at)));
   const fresh = all.filter((t) => now - lastUsed(t.key) > REPEAT_DAYS * 864e5);
-  if (!fresh.length) return undefined;
   // Never used first, then oldest; among equals, the theme with more pieces.
   fresh.sort((a, b) => lastUsed(a.key) - lastUsed(b.key) || b.items.length - a.items.length);
-  const theme = fresh[0];
-  theme.items = [...theme.items]
-    .sort((a, b) => (featured.get(a.handle) || 0) - (featured.get(b.handle) || 0) || b.price - a.price)
-    .slice(0, MAX_PIECES);
-  return theme;
+  return fill(fresh[0]);
 }
 
 /* --------------------------------------------------------------- slides */
