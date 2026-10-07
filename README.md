@@ -27,6 +27,18 @@ Posts the LuxyBasement catalogue to Instagram, one piece every 30 minutes from 8
 
 After that, start a `drip` run (see below) and it posts on its own.
 
+## Product tags (shopping bags on posts)
+
+`tag.mjs` tags each post with its piece from the Meta shop, so the post gets a shopping bag. Tagging only works through the Facebook-login version of Instagram's API, so it needs a second secret, `FB_ACCESS_TOKEN`.
+
+1. **Add the permissions** (once). In https://developers.facebook.com/apps/2374200442986686 (AutoSocialPoster), open **Use cases → Instagram API → Customize → Permissions and features**. Click **Add** next to `instagram_basic`, `instagram_shopping_tag_products`, `catalog_management`, `business_management`, `pages_show_list` and `pages_read_engagement`.
+2. **Get a token.** In https://developers.facebook.com/tools/explorer choose **AutoSocialPoster**, choose **User Token**, add the same six permissions, and click **Generate Access Token**. When Facebook asks, allow the LuxyBasement Page, @luxybasement and the "LuxyBasement Products" catalogue.
+3. **Make it last 60 days.** Copy the token into https://developers.facebook.com/tools/debug/accesstoken, click **Debug**, then **Extend Access Token**, and copy the long-lived token it shows.
+4. **Store it in GitHub** as a repository secret named `FB_ACCESS_TOKEN`. Don't paste it anywhere else.
+5. **Tag the backlog:** Actions → Publish to Instagram → Run workflow → `tag`, count `25`. Each run tags up to that many posts, newest first, 20 seconds apart. Run it again until the log says nothing is left.
+
+After that, every drip post is tagged straight after it goes up, and the drip also clears a couple of older posts each time. `tags.json` records what has been tagged. Sold pieces are skipped. Like the posting token, this one lasts 60 days.
+
 ## Day to day
 
 - **Start or restart posting:** Actions → Publish to Instagram → Run workflow → `drip`, interval `30`. A watchdog checks every 15 minutes and restarts the drip if it has stopped (for example when GitHub shuts a runner down), so normally you never need to.

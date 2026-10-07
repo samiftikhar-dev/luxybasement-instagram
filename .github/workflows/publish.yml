@@ -9,12 +9,12 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'check = test without posting; publish = post the next piece now; burst = post several in a row; drip = post steadily, keep restarting, and pick up new listings; reconcile = match failed posts against the account'
+        description: 'check = test without posting; publish = post the next piece now; burst = post several in a row; drip = post steadily, keep restarting, and pick up new listings; reconcile = match failed posts against the account; tag = tag posts with their shop products'
         type: choice
-        options: [check, publish, burst, drip, reconcile]
+        options: [check, publish, burst, drip, reconcile, tag]
         default: check
       count:
-        description: 'burst only: how many to post'
+        description: 'burst: how many to post. tag: how many posts to tag'
         default: '20'
       interval_minutes:
         description: 'burst and drip: minutes between posts'
@@ -72,6 +72,7 @@ jobs:
       - name: Post
         env:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          FB_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
           GH_TOKEN: ${{ github.token }}
           MODE: ${{ github.event.inputs.mode || 'publish' }}
           COUNT: ${{ github.event.inputs.count || '1' }}
@@ -83,12 +84,25 @@ jobs:
           # track of what already went out.
           save() {
             git add published.json posts.json known.json
+            [ -f tags.json ] && git add tags.json
             if ! git diff --cached --quiet; then
               git commit -qm "Record Instagram post"
               git pull -q --rebase
               git push -q
             fi
           }
+
+          # Product tags need their own token, so tagging never holds up posting:
+          # a refused token is reported and skipped, not treated as a block.
+          tag() {
+            set +e; TAG_LIMIT="$1" node tag.mjs; set -e
+            save
+          }
+
+          if [ "$MODE" = tag ]; then
+            tag "$COUNT"
+            exit 0
+          fi
 
           if [ "$MODE" = check ] || [ "$MODE" = publish ] || [ "$MODE" = reconcile ]; then
             rc=0; node publish.mjs || rc=$?
@@ -117,6 +131,8 @@ jobs:
               git add blocked.txt && git commit -qm "Stop posting: Instagram blocked the account or token" && git pull -q --rebase && git push -q
               exit 1
             fi
+            # Tag the post that just went up, plus a couple from the backlog.
+            tag 3
             if [ "$MODE" = burst ] && [ "$i" -ge "$COUNT" ]; then exit 0; fi
             if [ "$MODE" = drip ] && [ $(( $(date +%s) - started )) -gt $(( 300 * 60 )) ]; then
               echo "Restarting to stay inside GitHub's time limit."
