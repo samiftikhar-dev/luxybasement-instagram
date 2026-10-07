@@ -86,7 +86,34 @@ function textFilter(dir, name, text, { font, size, color, y, x = '(w-text_w)/2',
     (alpha ? `:alpha='${alpha}'` : '');
 }
 
-export async function renderReel(item, outPath) {
+/**
+ * Background music: royalty-free instrumentals from Pixabay Music (free for
+ * commercial use, no credit needed), listed in music.json and rotated Reel by
+ * Reel. Pixabay's licence doesn't allow re-sharing the raw files, so each one
+ * is fetched when needed rather than kept in this public repo. If a download
+ * fails, the Reel goes out with a silent track instead.
+ */
+const MUSIC = existsSync('music.json') ? JSON.parse(readFileSync('music.json', 'utf8')) : [];
+// Skip the slow intro most tracks open with.
+const MUSIC_START = 8;
+
+async function musicFor(pick) {
+  if (!MUSIC.length) return null;
+  const track = MUSIC[pick % MUSIC.length];
+  const file = join('work', `music-${pick % MUSIC.length}.mp3`);
+  try {
+    if (!existsSync(file)) {
+      mkdirSync('work', { recursive: true });
+      await download(track.mp3, file);
+    }
+    return { file, track };
+  } catch (err) {
+    console.log(`Music unavailable (${err.message}); using silence.`);
+    return null;
+  }
+}
+
+export async function renderReel(item, outPath, pick = 0) {
   const photos = photosFor(item).slice(0, MAX_PHOTOS);
   if (photos.length < 2) throw new Error('needs at least two photos');
 
@@ -146,14 +173,18 @@ export async function renderReel(item, outPath) {
   f.push(`color=c=${BG}:s=${W}x${H}:d=${END}:r=${FPS},format=yuv420p,${end.join(',')}[end]`);
   f.push(`[main][end]xfade=transition=fade:duration=${FADE}:offset=${(slides - FADE).toFixed(3)},format=yuv420p[v]`);
 
-  // A silent track: some players and Instagram's own checks expect audio.
-  const audio = ['-f', 'lavfi', '-t', total.toFixed(3), '-i', 'anullsrc=channel_layout=stereo:sample_rate=48000'];
+  // Music, faded in and out, or a silent track (players expect audio either way).
+  const music = await musicFor(pick);
+  const audio = music
+    ? ['-ss', String(MUSIC_START), '-t', total.toFixed(3), '-i', music.file]
+    : ['-f', 'lavfi', '-t', total.toFixed(3), '-i', 'anullsrc=channel_layout=stereo:sample_rate=48000'];
+  f.push(`[${n}:a]aformat=sample_rates=48000:channel_layouts=stereo,afade=t=in:d=0.4,afade=t=out:st=${(total - 1.2).toFixed(3)}:d=1.2,volume=0.85[a]`);
 
   execFileSync('ffmpeg', [
     '-y', '-loglevel', 'error',
     ...inputs, ...audio,
     '-filter_complex', f.join(';'),
-    '-map', '[v]', '-map', `${n}:a`,
+    '-map', '[v]', '-map', '[a]',
     '-c:v', 'libx264', '-preset', 'medium', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-r', String(FPS),
     '-b:v', '6M', '-maxrate', '8M', '-bufsize', '12M',
     '-c:a', 'aac', '-b:a', '128k', '-ar', '48000',
@@ -162,7 +193,7 @@ export async function renderReel(item, outPath) {
   ], { stdio: 'inherit' });
 
   rmSync(dir, { recursive: true, force: true });
-  return { seconds: total, photos: n };
+  return { seconds: total, photos: n, music: music ? `${music.track.title} by ${music.track.artist}` : 'silence' };
 }
 
 /* --------------------------------------------------------------- posting */
@@ -264,13 +295,14 @@ async function main() {
     mkdirSync('previews', { recursive: true });
     for (const item of items) {
       const out = join('previews', `${item.handle}.mp4`);
-      const { seconds, photos } = await renderReel(item, out);
+      const pick = Object.keys(done).length + items.indexOf(item);
+      const { seconds, photos, music } = await renderReel(item, out, pick);
       // Stills of the photo frame and the end card, for a quick look at layout.
       for (const [name, at] of [['frame', 1.5], ['end', seconds - 0.8]]) {
         execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-ss', String(at), '-i', out, '-frames:v', '1', '-vf', 'scale=540:-1', join('previews', `${item.handle}.${name}.jpg`)]);
       }
       writeFileSync(join('previews', `${item.handle}.txt`), captionFor(item, Object.keys(done).length).replace('Shop via the link in our bio.', 'Tap the tag to shop, or use the link in our bio.'));
-      console.log(`Rendered ${out}: ${seconds.toFixed(1)}s from ${photos} photos.`);
+      console.log(`Rendered ${out}: ${seconds.toFixed(1)}s from ${photos} photos, music: ${music}.`);
     }
     return;
   }
@@ -285,7 +317,8 @@ async function main() {
     const { id: igId } = await api('me', { params: { fields: 'id' } });
     mkdirSync('work', { recursive: true });
     const file = join('work', `${item.handle}.mp4`);
-    await renderReel(item, file);
+    const { music } = await renderReel(item, file, Object.keys(done).length);
+    console.log(`Music: ${music}`);
     const caption = captionFor(item, Object.keys(done).length)
       .replace('Shop via the link in our bio.', 'Tap the tag to shop, or use the link in our bio.');
     try {
