@@ -119,8 +119,10 @@ const spaced = (s) => s.toUpperCase().split('').join(' ');
 
 function shortTitle(item) {
   const t = postTitle(item.title);
-  const brand = (item.brand || '').toLowerCase();
-  return brand && t.toLowerCase().startsWith(brand) ? t.slice(brand.length).trim() : t;
+  // Compare without accents: the shop may say "Hermes" where a title says "Hermès".
+  const plain = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const brand = plain(item.brand || '');
+  return brand && plain(t).startsWith(brand) ? t.slice(brand.length).trim() : t;
 }
 
 function text(dir, name, value, { font, size, color, y, x = '(w-text_w)/2' }) {
