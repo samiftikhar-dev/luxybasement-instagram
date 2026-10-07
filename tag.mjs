@@ -126,7 +126,6 @@ async function main() {
     .sort(([, a], [, b]) => String(b.at).localeCompare(String(a.at)));
 
   console.log(`${todo.length} posts not tagged yet; tagging up to ${LIMIT} this run.`);
-  if (!todo.length) return;
 
   const [shop, catalog] = await Promise.all([shopByHandle(), catalogProducts()]);
   console.log(`Shop feed: ${shop.size} pieces. Catalogue: ${catalog.size} products.`);
@@ -176,6 +175,38 @@ async function main() {
       }
       console.error(`Could not tag ${title}: ${err.message}`);
       record('failed', { error: err.message });
+    }
+  }
+
+  // Themed carousels: slide 1 is the cover; slide k+1 shows the carousel's
+  // k-th piece, so each product slide gets that piece's own tag.
+  const carousels = existsSync('carousels.json') ? JSON.parse(readFileSync('carousels.json', 'utf8')) : [];
+  for (const c of carousels.filter((c) => c.status === 'published' && c.mediaId && !tags[c.mediaId])) {
+    if (done >= LIMIT) break;
+    try {
+      const media = await api(c.mediaId, { params: { fields: 'children{id}' } });
+      const slides = (media.children?.data || []).map((d) => d.id);
+      let tagged = 0;
+      for (const [k, handle] of c.handles.entries()) {
+        const piece = shop.get(handle);
+        const productId = piece?.inStock && catalog.get(piece.retailerId);
+        if (!productId || !slides[k + 1]) continue;
+        await api(`${slides[k + 1]}/product_tags`, {
+          method: 'POST',
+          params: { updated_tags: JSON.stringify([{ product_id: productId, x: 0.5, y: 0.45 }]) },
+        });
+        tagged++;
+        await sleep(5_000);
+      }
+      tags[c.mediaId] = { status: 'tagged', title: c.title, at: new Date().toISOString(), slides: tagged };
+      save();
+      console.log(`Tagged carousel "${c.title}": ${tagged} slides ${c.permalink || c.mediaId}`);
+      done++;
+    } catch (err) {
+      if ([190, 10, 200].includes(err.code)) { console.error(`Meta refused the token: ${err.message}`); process.exit(76); }
+      console.error(`Could not tag carousel ${c.title}: ${err.message}`);
+      tags[c.mediaId] = { status: 'failed', title: c.title, at: new Date().toISOString(), error: err.message };
+      save();
     }
   }
   console.log(`Tagged ${done} this run.`);

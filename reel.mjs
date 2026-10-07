@@ -80,7 +80,7 @@ async function download(url, path) {
 function textFilter(dir, name, text, { font, size, color, y, x = '(w-text_w)/2', alpha }) {
   const file = join(dir, `${name}.txt`);
   writeFileSync(file, text);
-  return `drawtext=fontfile=${font}:textfile=${file}:fontsize=${size}:fontcolor=${color}:x=${x}:y=${y}` +
+  return `drawtext=fontfile=${font}:textfile=${file}:fontsize=${size}:fontcolor=${color}:x=${x}:y=${y}:expansion=none` +
     (alpha ? `:alpha='${alpha}'` : '');
 }
 

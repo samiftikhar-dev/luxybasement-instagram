@@ -132,7 +132,7 @@ const CATEGORY = {
 };
 
 /** Five tags: shop, resale, two category, one broad. `n` rotates them. */
-function hashtags(item, n) {
+export function hashtags(item, n) {
   const type = CATEGORY[item.productType] ? item.productType : 'Accessories';
   const pool = CATEGORY[type].filter((t) => !(/silk/.test(t) && /cashmere|wool/i.test(item.title)));
   const cat = [pool[(n * 2) % pool.length], pool[(n * 2 + 1) % pool.length]];

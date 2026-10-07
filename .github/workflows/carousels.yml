@@ -1,0 +1,67 @@
+name: Instagram themed carousels
+
+on:
+  # Two a day, 12:30pm and 8pm Pacific in daylight time (an hour earlier after
+  # it ends). When every theme has run in the last 14 days, a run posts nothing.
+  # Not scheduled until the user approves the preview.
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'preview = render without posting (download from the run page); post = publish the next carousel'
+        type: choice
+        options: [preview, post]
+        default: preview
+      theme:
+        description: 'Optional theme key, e.g. price:500, type:shoes, brand:hermes, size:37'
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: instagram-carousels
+  cancel-in-progress: false
+
+jobs:
+  carousel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg > /dev/null
+
+      - name: Build or post
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ github.event.inputs.mode || 'post' }}
+          THEME: ${{ github.event.inputs.theme || '' }}
+        run: |
+          rc=0; node carousel.mjs || rc=$?
+          if [ "$MODE" = post ] && [ -f carousels.json ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add carousels.json
+            if ! git diff --cached --quiet; then
+              git commit -qm "Record Instagram carousel"
+              git pull -q --rebase
+              git push -q
+            fi
+          fi
+          [ "$rc" = 75 ] && rc=0
+          exit $rc
+
+      - name: Keep the previews
+        if: github.event.inputs.mode == 'preview'
+        uses: actions/upload-artifact@v4
+        with:
+          name: carousel-previews
+          path: previews/
