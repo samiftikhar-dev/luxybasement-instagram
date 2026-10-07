@@ -3,7 +3,9 @@ name: Instagram themed carousels
 on:
   # Two a day, 12:30pm and 8pm Pacific in daylight time (an hour earlier after
   # it ends). When every theme has run in the last 14 days, a run posts nothing.
-  # Not scheduled until the user approves the preview.
+  schedule:
+    - cron: '30 19 * * *'
+    - cron: '0 3 * * *'
   workflow_dispatch:
     inputs:
       mode:
