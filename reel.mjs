@@ -239,6 +239,10 @@ async function main() {
     for (const item of items) {
       const out = join('previews', `${item.handle}.mp4`);
       const { seconds, photos } = await renderReel(item, out);
+      // Stills of the photo frame and the end card, for a quick look at layout.
+      for (const [name, at] of [['frame', 1.5], ['end', seconds - 0.8]]) {
+        execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-ss', String(at), '-i', out, '-frames:v', '1', '-vf', 'scale=540:-1', join('previews', `${item.handle}.${name}.jpg`)]);
+      }
       writeFileSync(join('previews', `${item.handle}.txt`), captionFor(item, Object.keys(done).length).replace('Shop via the link in our bio.', 'Tap the tag to shop, or use the link in our bio.'));
       console.log(`Rendered ${out}: ${seconds.toFixed(1)}s from ${photos} photos.`);
     }
