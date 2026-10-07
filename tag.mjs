@@ -92,14 +92,19 @@ async function catalogProducts() {
   return map;
 }
 
-/** Carousel tags go on a child image; a single image is tagged directly. */
+/**
+ * Carousel tags go on a child image; a single image is tagged directly. A Reel
+ * is tagged on itself, without a position (video tags have no x/y).
+ */
 async function tagTarget(mediaId) {
   const media = await api(mediaId, { params: { fields: 'media_type,children{id,media_type}' } });
   if (media.media_type === 'CAROUSEL_ALBUM') {
     const child = media.children?.data?.find((c) => c.media_type === 'IMAGE');
-    return child?.id;
+    return child && { id: child.id, video: false };
   }
-  return media.media_type === 'IMAGE' ? mediaId : undefined;
+  if (media.media_type === 'IMAGE') return { id: mediaId, video: false };
+  if (media.media_type === 'VIDEO') return { id: mediaId, video: true };
+  return undefined;
 }
 
 async function main() {
@@ -110,6 +115,9 @@ async function main() {
 
   const posts = JSON.parse(readFileSync('posts.json', 'utf8'));
   const published = JSON.parse(readFileSync('published.json', 'utf8'));
+  // Reels are keyed by shop handle; give them the same shape as feed posts.
+  const reels = existsSync('reels.json') ? JSON.parse(readFileSync('reels.json', 'utf8')) : {};
+  for (const [handle, r] of Object.entries(reels)) published[`reel:${handle}`] = r;
   const tags = existsSync('tags.json') ? JSON.parse(readFileSync('tags.json', 'utf8')) : {};
   const handleOf = new Map(posts.map((p) => [p.id, p.handle]));
 
@@ -129,7 +137,7 @@ async function main() {
   for (const [postId, state] of todo) {
     if (done >= LIMIT) break;
     const { mediaId, title } = state;
-    const handle = handleOf.get(postId) || (postId.startsWith('shop:') ? postId.slice(5) : undefined);
+    const handle = handleOf.get(postId) || postId.match(/^(?:shop|reel):(.+)$/)?.[1];
     const piece = handle && shop.get(handle);
     const record = (status, extra = {}) => {
       tags[mediaId] = { status, title, at: new Date().toISOString(), ...extra };
@@ -143,17 +151,18 @@ async function main() {
 
     try {
       const target = await tagTarget(mediaId);
-      if (!target) { record('untaggable', { note: 'not an image post' }); continue; }
+      if (!target) { record('untaggable', { note: 'not an image post or reel' }); continue; }
 
-      const existing = await api(`${target}/product_tags`);
+      const existing = await api(`${target.id}/product_tags`);
       if ((existing.data || []).some((t) => String(t.product_id) === String(productId))) {
         record('tagged', { productId, note: 'already tagged' });
         continue;
       }
 
-      await api(`${target}/product_tags`, {
+      const tag = target.video ? { product_id: productId } : { product_id: productId, x: 0.5, y: 0.5 };
+      await api(`${target.id}/product_tags`, {
         method: 'POST',
-        params: { updated_tags: JSON.stringify([{ product_id: productId, x: 0.5, y: 0.5 }]) },
+        params: { updated_tags: JSON.stringify([tag]) },
       });
       record('tagged', { productId });
       console.log(`Tagged: ${title} ${state.permalink || mediaId}`);

@@ -131,7 +131,7 @@ export async function renderReel(item, outPath) {
 
   // End card: the reason to tap.
   const endTitle = wrap(shortTitle(item), 34, 3);
-  const top = 560;
+  const top = 700;
   const end = [
     textFilter(dir, 'e_head', spaced('LuxyBasement'), { font: SANS, size: 30, color: GOLD, y: top - 140 }),
     textFilter(dir, 'e_brand', brand.toUpperCase(), { font: SERIF, size: 84, color: GOLD, y: top }),
