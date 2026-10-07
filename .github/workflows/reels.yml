@@ -45,11 +45,12 @@ jobs:
         with:
           node-version: 20
 
-      # A prebuilt ffmpeg: Ubuntu's package mirrors have hung for 10+ minutes.
+      # BtbN's full static build (with the text filter the slides need), fetched
+      # from GitHub: Ubuntu's package mirrors have hung for 10+ minutes.
       - name: Install ffmpeg
-        uses: FedericoCarboni/setup-ffmpeg@v3
-        with:
-          ffmpeg-version: release
+        run: |
+          curl -sSL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz | tar -xJ -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/ffmpeg-master-latest-linux64-gpl/bin" >> "$GITHUB_PATH"
 
       - name: Build or post
         env:
