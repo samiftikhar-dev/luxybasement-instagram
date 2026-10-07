@@ -27,6 +27,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: instagram-reels
@@ -72,6 +73,8 @@ jobs:
               git push -q
             fi
           fi
+          # Tag it now rather than waiting for the hourly tagging run.
+          if [ "$MODE" = post ] && [ "$rc" = 0 ]; then gh workflow run tag.yml --ref main -f count=3 || true; fi
           [ "$rc" = 75 ] && rc=0
           exit $rc
 

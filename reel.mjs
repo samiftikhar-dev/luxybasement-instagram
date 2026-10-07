@@ -24,6 +24,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadFeed, captionFor, photosFor, postTitle } from './feed.mjs';
+import { REEL_GAP_MIN, minutesSinceLast } from './due.mjs';
 
 const MODE = process.env.MODE || 'preview';
 const API = 'https://graph.instagram.com/v23.0';
@@ -311,6 +312,8 @@ async function main() {
     if (!TOKEN) { console.log('IG_ACCESS_TOKEN is not set.'); return; }
     const hour = pacificHour();
     if (hour < 8 || hour >= 23) { console.log('Outside posting hours.'); process.exit(75); }
+    const since = minutesSinceLast(Object.values(done));
+    if (since < REEL_GAP_MIN) { console.log(`Last reel was ${Math.round(since)} minutes ago; not posting another yet.`); process.exit(75); }
     const [item] = nextItems(feed, done, 1);
     if (!item) { console.log('Every piece in stock already has a reel.'); return; }
 

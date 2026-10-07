@@ -72,7 +72,6 @@ jobs:
       - name: Post
         env:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
-          FB_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
           GH_TOKEN: ${{ github.token }}
           MODE: ${{ github.event.inputs.mode || 'publish' }}
           COUNT: ${{ github.event.inputs.count || '1' }}
@@ -84,7 +83,6 @@ jobs:
           # track of what already went out.
           save() {
             git add published.json posts.json known.json
-            [ -f tags.json ] && git add tags.json
             if ! git diff --cached --quiet; then
               git commit -qm "Record Instagram post"
               git pull -q --rebase
@@ -92,15 +90,8 @@ jobs:
             fi
           }
 
-          # Product tags need their own token, so tagging never holds up posting:
-          # a refused token is reported and skipped, not treated as a block.
-          tag() {
-            set +e; TAG_LIMIT="$1" node tag.mjs; set -e
-            save
-          }
-
           if [ "$MODE" = tag ]; then
-            tag "$COUNT"
+            gh workflow run tag.yml --ref main -f count="$COUNT"
             exit 0
           fi
 
@@ -131,8 +122,12 @@ jobs:
               git add blocked.txt && git commit -qm "Stop posting: Instagram blocked the account or token" && git pull -q --rebase && git push -q
               exit 1
             fi
-            # Tag the post that just went up, plus a couple from the backlog.
-            tag 3
+            # Start any Reel or carousel that is due: GitHub's own cron for them
+            # skips runs, but this loop never stops. Then tag what just went up.
+            for job in $(node due.mjs); do
+              gh workflow run "${job}s.yml" --ref main -f mode=post || true
+            done
+            gh workflow run tag.yml --ref main -f count=3 || true
             if [ "$MODE" = burst ] && [ "$i" -ge "$COUNT" ]; then exit 0; fi
             if [ "$MODE" = drip ] && [ $(( $(date +%s) - started )) -gt $(( 300 * 60 )) ]; then
               echo "Restarting to stay inside GitHub's time limit."

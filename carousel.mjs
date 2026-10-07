@@ -22,6 +22,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, readdirSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadFeed, photosFor, postTitle, hashtags } from './feed.mjs';
+import { CAROUSEL_GAP_MIN, minutesSinceLast } from './due.mjs';
 
 const MODE = process.env.MODE || 'preview';
 const API = 'https://graph.instagram.com/v23.0';
@@ -321,6 +322,8 @@ async function main() {
   const hour = pacificHour();
   if (hour < 8 || hour >= 23) { console.log('Outside posting hours.'); process.exit(75); }
 
+  const since = minutesSinceLast(done);
+  if (since < CAROUSEL_GAP_MIN) { console.log(`Last carousel was ${Math.round(since)} minutes ago; not posting another yet.`); process.exit(75); }
   const { id: igId } = await api('me', { params: { fields: 'id' } });
   const slides = await renderCarousel(theme, join('work', 'slides'));
   const record = { theme: theme.key, title: theme.title, handles: theme.items.map((i) => i.handle), at: new Date().toISOString() };
