@@ -11,6 +11,7 @@
  * offers line. Everything sits inside Instagram's Reels safe zone, clear of the
  * caption and buttons Instagram draws over the bottom and right edge.
  *
+ * Posting hosts the video briefly on jsDelivr (see hostVideo).
  * Rendering needs ffmpeg; the workflow installs it on the GitHub runner. Fonts
  * are the site's own (Playfair Display, Space Grotesk; OFL, in fonts/).
  *
@@ -20,7 +21,7 @@
  *               pause, 76 = blocked, as in publish.mjs.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync, readFileSync, existsSync, statSync, rmSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadFeed, captionFor, photosFor, postTitle } from './feed.mjs';
 
@@ -183,22 +184,45 @@ async function api(path, { method = 'GET', params = {} } = {}) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * Uploads the file straight to Instagram (resumable upload), so the video never
- * needs hosting anywhere public.
+ * Instagram (with Instagram Login) only takes a Reel from a public URL. So the
+ * video is pushed alone to a throwaway branch, reel-media, and served through
+ * jsDelivr's free CDN, which sends the video/mp4 type Instagram wants. Each
+ * Reel force-pushes over the last, so nothing piles up in the repository.
  */
-async function publishReel(igId, file, caption) {
+async function hostVideo(file, name) {
+  const repo = process.env.GITHUB_REPOSITORY;
+  const token = process.env.GH_TOKEN;
+  if (!repo || !token) throw new Error('GITHUB_REPOSITORY and GH_TOKEN are needed to host the video');
+  const dir = join('work', 'media');
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, `${name}.mp4`), readFileSync(file));
+  const git = (...args) => execFileSync('git', args, { cwd: dir, stdio: ['ignore', 'pipe', 'inherit'] }).toString().trim();
+  git('init', '-q', '-b', 'reel-media');
+  git('-c', 'user.name=github-actions[bot]', '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com', 'add', '.');
+  git('-c', 'user.name=github-actions[bot]', '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com', 'commit', '-q', '-m', `Reel: ${name}`);
+  git('push', '-q', '-f', `https://x-access-token:${token}@github.com/${repo}.git`, 'HEAD:refs/heads/reel-media');
+  const sha = git('rev-parse', 'HEAD');
+
+  const candidates = [
+    `https://cdn.jsdelivr.net/gh/${repo}@${sha}/${name}.mp4`,
+    `https://raw.githubusercontent.com/${repo}/${sha}/${name}.mp4`,
+  ];
+  for (let i = 0; i < 12; i++) {
+    for (const url of candidates) {
+      const res = await fetch(url, { method: 'HEAD' }).catch(() => null);
+      if (res?.ok) { console.log(`Video hosted at ${url} (${res.headers.get('content-type')})`); return url; }
+    }
+    await sleep(5000);
+  }
+  throw new Error('hosted video never became reachable');
+}
+
+async function publishReel(igId, videoUrl, caption) {
   const container = await api(`${igId}/media`, {
     method: 'POST',
-    params: { media_type: 'REELS', upload_type: 'resumable', caption, share_to_feed: 'true' },
+    params: { media_type: 'REELS', video_url: videoUrl, caption, share_to_feed: 'true' },
   });
-  const size = statSync(file).size;
-  const up = await fetch(container.uri || `https://rupload.facebook.com/ig-api-upload/v23.0/${container.id}`, {
-    method: 'POST',
-    headers: { Authorization: `OAuth ${TOKEN}`, offset: '0', file_size: String(size) },
-    body: readFileSync(file),
-  });
-  if (!up.ok) throw new Error(`upload failed: ${up.status} ${await up.text()}`);
-
   for (let i = 0; i < 60; i++) {
     const { status_code: status, status: detail } = await api(container.id, { params: { fields: 'status_code,status' } });
     if (status === 'FINISHED') break;
@@ -263,7 +287,8 @@ async function main() {
     const caption = captionFor(item, Object.keys(done).length)
       .replace('Shop via the link in our bio.', 'Tap the tag to shop, or use the link in our bio.');
     try {
-      const mediaId = await publishReel(igId, file, caption);
+      const videoUrl = await hostVideo(file, item.handle.slice(0, 80));
+      const mediaId = await publishReel(igId, videoUrl, caption);
       const { permalink } = await api(mediaId, { params: { fields: 'permalink' } }).catch(() => ({}));
       done[item.handle] = { status: 'published', title: item.title, mediaId, permalink, at: new Date().toISOString() };
       console.log(`Reel published: ${permalink || mediaId}`);
