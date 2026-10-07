@@ -1,0 +1,68 @@
+name: Instagram Reels
+
+# Builds Reels from the shop's photos with ffmpeg (built into GitHub's Ubuntu
+# runners) and posts them. Separate from publish.yml so a long drip run never
+# holds a Reel back.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'preview = render without posting (download from the run page); post = publish the next Reel'
+        type: choice
+        options: [preview, post]
+        default: preview
+      count:
+        description: 'preview: how many to render'
+        default: '2'
+      handles:
+        description: 'preview: specific product handles, comma separated (optional)'
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: instagram-reels
+  cancel-in-progress: false
+
+jobs:
+  reel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build or post
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          MODE: ${{ github.event.inputs.mode || 'post' }}
+          REEL_COUNT: ${{ github.event.inputs.count || '2' }}
+          HANDLES: ${{ github.event.inputs.handles || '' }}
+        run: |
+          ffmpeg -version | head -1
+          rc=0; node reel.mjs || rc=$?
+          if [ "$MODE" = post ] && [ -f reels.json ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add reels.json
+            if ! git diff --cached --quiet; then
+              git commit -qm "Record Instagram reel"
+              git pull -q --rebase
+              git push -q
+            fi
+          fi
+          [ "$rc" = 75 ] && rc=0
+          exit $rc
+
+      - name: Keep the previews
+        if: github.event.inputs.mode == 'preview'
+        uses: actions/upload-artifact@v4
+        with:
+          name: reel-previews
+          path: previews/
