@@ -45,8 +45,11 @@ jobs:
         with:
           node-version: 20
 
+      # A prebuilt ffmpeg: Ubuntu's package mirrors have hung for 10+ minutes.
       - name: Install ffmpeg
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg > /dev/null
+        uses: FedericoCarboni/setup-ffmpeg@v3
+        with:
+          ffmpeg-version: release
 
       - name: Build or post
         env:
