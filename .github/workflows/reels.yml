@@ -4,6 +4,12 @@ name: Instagram Reels
 # runner each time) and posts them. Separate from publish.yml so a long drip run never
 # holds a Reel back.
 on:
+  # Two Reels a day: 11:00 and 18:00 Pacific while daylight time lasts (18:00
+  # and 01:00 UTC), an hour earlier after it ends. GitHub can start scheduled
+  # runs late, which is harmless here.
+  schedule:
+    - cron: '0 18 * * *'
+    - cron: '0 1 * * *'
   workflow_dispatch:
     inputs:
       mode:
