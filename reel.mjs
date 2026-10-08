@@ -273,12 +273,31 @@ async function publishReel(igId, videoUrl, caption) {
   }
 }
 
-/** Next piece to reel: in stock, at least three usable photos, not reeled yet. */
+/**
+ * Next pieces to reel: in stock, at least two usable photos, not reeled yet.
+ * More photos first (a better video), but never the same brand or category as
+ * the last few Reels, so the feed doesn't run five pairs of boots in a row.
+ */
 function nextItems(feed, done, count) {
   // A failed reel gets one more try; after that it is "skipped".
-  const usable = feed.filter((i) => i.inStock && (!done[i.handle] || done[i.handle].status === 'failed') && photosFor(i).length >= 2);
-  usable.sort((a, b) => Math.min(photosFor(b).length, 4) - Math.min(photosFor(a).length, 4));
-  return usable.slice(0, count);
+  const pool = feed.filter((i) => i.inStock && (!done[i.handle] || done[i.handle].status === 'failed') && photosFor(i).length >= 2);
+  pool.sort((a, b) => Math.min(photosFor(b).length, 4) - Math.min(photosFor(a).length, 4));
+
+  const byHandle = new Map(feed.map((i) => [i.handle, i]));
+  const recent = Object.entries(done)
+    .filter(([, r]) => r.status === 'published')
+    .sort(([, a], [, b]) => String(b.at).localeCompare(String(a.at)))
+    .map(([h]) => byHandle.get(h))
+    .filter(Boolean);
+  const picked = [];
+  while (picked.length < count && pool.length) {
+    const last = [...picked].reverse().concat(recent);
+    const brands = new Set(last.slice(0, 3).map((i) => i.brand));
+    const types = new Set(last.slice(0, 2).map((i) => i.productType));
+    const i = Math.max(0, pool.findIndex((x) => !brands.has(x.brand) && !types.has(x.productType)));
+    picked.push(...pool.splice(i, 1));
+  }
+  return picked;
 }
 
 const pacificHour = () => Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', hourCycle: 'h23' }).format(new Date()));
