@@ -264,5 +264,23 @@
     "status": "published",
     "mediaId": "18117260894104667",
     "permalink": "https://www.instagram.com/p/DedRy8YDYUS/"
+  },
+  {
+    "theme": "brand:saint-laurent",
+    "title": "Pieces from Saint Laurent",
+    "handles": [
+      "saint-laurent-black-floral-leather-combat-boots",
+      "saint-laurent-black-suede-leopard-kiki-ankle-boots-38-5",
+      "saint-laurent-black-leather-studded-point-toe-ankle-boots-38",
+      "saint-laurent-black-suede-debbie-double-chain-ankle-boots-36",
+      "saint-laurent-red-patent-leather-aylah-thigh-high-over-the-knee-boots-37",
+      "saint-laurent-white-floral-print-leather-espadrille-sneakers-size-37",
+      "saint-laurent-black-jerry-bat-embellished-sunglasses",
+      "saint-laurent-black-aviator-leather-blinker-sunglasses",
+      "saint-laurent-black-new-wave-loulou-heart-sunglasses"
+    ],
+    "at": "2026-10-14T19:11:45.165Z",
+    "status": "failed",
+    "error": "POST 28539524299050041/media failed: Only photo or video can be accepted as media type. (code 9004/2207052)"
   }
 ]
