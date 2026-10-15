@@ -128,6 +128,9 @@ jobs:
               gh workflow run "${job}s.yml" --ref main -f mode=post || true
             done
             gh workflow run tag.yml --ref main -f count=3 || true
+            # Stock backstop for the shop: a piece sold out in one store is taken
+            # off sale in the other (luxybit's webhooks don't always arrive).
+            curl -s -m 70 https://www.luxybasement.com/api/stock-sync/reconcile || true
             if [ "$MODE" = burst ] && [ "$i" -ge "$COUNT" ]; then exit 0; fi
             if [ "$MODE" = drip ] && [ $(( $(date +%s) - started )) -gt $(( 300 * 60 )) ]; then
               echo "Restarting to stay inside GitHub's time limit."
