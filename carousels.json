@@ -372,5 +372,23 @@
     "at": "2026-10-15T03:43:19.493Z",
     "status": "failed",
     "error": "POST 28539524299050041/media failed: Only photo or video can be accepted as media type. (code 9004/2207052)"
+  },
+  {
+    "theme": "brand:givenchy",
+    "title": "Pieces from Givenchy",
+    "handles": [
+      "givenchy-black-textured-coated-canvas-bambi-antigona-large-tote-bag",
+      "givenchy-black-leather-floral-print-wedge-sandals-40",
+      "givenchy-rose-poudre-leather-d-chain-low-gladiator-sandals-40",
+      "givenchy-pink-beige-retra-leopard-print-textured-leather-sandals-37-5",
+      "givenchy-black-white-leather-shark-lock-peep-toe-sandals-39",
+      "givenchy-black-pink-floral-medium-stargate-shopper-tote-bag",
+      "givenchy-black-leather-escarpin-chain-round-toe-pumps-37-5",
+      "givenchy-black-studded-leather-sandals-36"
+    ],
+    "at": "2026-10-15T19:16:27.473Z",
+    "status": "published",
+    "mediaId": "18462575206190484",
+    "permalink": "https://www.instagram.com/p/DehsJDIG-Xg/"
   }
 ]
