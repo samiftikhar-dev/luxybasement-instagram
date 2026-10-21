@@ -576,5 +576,19 @@
     "status": "published",
     "mediaId": "18120414241745030",
     "permalink": "https://www.instagram.com/p/DevUQk_FSZf/"
+  },
+  {
+    "theme": "brand:christian-dior",
+    "title": "Pieces from Christian Dior",
+    "handles": [
+      "christian-dior-light-pink-lambskin-cannage-medium-lady-dior-bag",
+      "christian-dior-blue-oblique-saddle-belt-pouch-bag",
+      "christian-dior-black-nylon-oblique-reversible-teddy-d-brim-bucket-hat",
+      "christian-dior-gold-30-montaigne-earrings",
+      "christian-dior-yellow-goldtone-so-real-pop-sunglasses"
+    ],
+    "at": "2026-10-21T19:21:37.500Z",
+    "status": "failed",
+    "error": "POST 28539524299050041/media failed: Only photo or video can be accepted as media type. (code 9004/2207052)"
   }
 ]
