@@ -651,5 +651,24 @@
     "at": "2026-10-23T02:29:06.259Z",
     "status": "failed",
     "error": "POST 28539524299050041/media failed: Only photo or video can be accepted as media type. (code 9004/2207052)"
+  },
+  {
+    "theme": "type:bags",
+    "title": "The bag edit",
+    "handles": [
+      "chanel-black-quilted-leather-large-gabrielle-hobo-bag",
+      "chanel-black-calfskin-quilted-leather-maxi-pearl-mini-wallet-on-chain-woc-bag",
+      "chanel-metallic-silver-quilted-mini-bag-with-limited-edition-charms",
+      "chanel-black-aged-calfskin-quilted-reissue-2-55-tote-bag",
+      "chanel-rose-pink-aged-calfskin-leather-gabrielle-double-zip-clutch-wallet-on-chain-bag",
+      "chanel-pink-quilted-lambskin-top-handle-mini-vanity-case-chain-bag",
+      "judith-leiber-black-crystal-top-handle-minaudiere-evening-bag",
+      "chanel-pink-caviar-boy-zip-clutch-with-chain",
+      "chanel-black-caviar-chevron-quilted-clutch-with-chain-bag"
+    ],
+    "at": "2026-10-23T02:59:18.852Z",
+    "status": "published",
+    "mediaId": "18357926173217257",
+    "permalink": "https://www.instagram.com/p/De0iskXjPt0/"
   }
 ]
