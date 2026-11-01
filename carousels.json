@@ -1008,5 +1008,21 @@
     "status": "published",
     "mediaId": "18063886853529475",
     "permalink": "https://www.instagram.com/p/DfLpwhzDD4_/"
+  },
+  {
+    "theme": "brand:balenciaga",
+    "title": "Pieces from Balenciaga",
+    "handles": [
+      "balenciaga-black-leather-carry-all-shopper-ikea-xl-travel-tote-bag",
+      "balenciaga-black-xl-giant-bistro-basket-tote-bag",
+      "balenciaga-ecru-canvas-leather-navy-cabas-xl-tote-bag",
+      "balenciaga-pink-quilted-leather-touch-puffy-clutch-bag",
+      "balenciaga-orange-lambskin-leather-classic-city-clip-pouch-clutch-bag",
+      "balenciaga-grey-suede-three-strap-espadrille-wedge-sandals-37",
+      "balenciaga-black-leather-espadrille-wedge-sandals-38"
+    ],
+    "at": "2026-11-01T20:28:06.504Z",
+    "status": "failed",
+    "error": "POST 28539524299050041/media_publish failed: An unexpected error has occurred. Please retry your request later. (code 2)"
   }
 ]
