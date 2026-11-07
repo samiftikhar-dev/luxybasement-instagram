@@ -1215,5 +1215,23 @@
     "status": "published",
     "mediaId": "17943129711388337",
     "permalink": "https://www.instagram.com/p/DfacimKnxBx/"
+  },
+  {
+    "theme": "type:bags",
+    "title": "The bag edit",
+    "handles": [
+      "fendi-red-technical-fabric-plexiglass-ff-motif-sunshine-medium-shopper-tote-bag",
+      "charlotte-olympia-red-perspex-dragon-pandora-box-clutch",
+      "bottega-veneta-parakeet-green-lambskin-leather-mini-cassette-camera-bag",
+      "chanel-black-quilted-caviar-leather-boy-zip-pouch-clutch-bag",
+      "miu-miu-black-matelasse-python-trim-crystal-my-miu-shoulder-bag",
+      "chanel-coral-quilted-chevron-lambskin-leather-zip-pouch-clutch-bag",
+      "miu-miu-tartan-plaid-wool-jewel-buckle-shoulder-belt-bag",
+      "chanel-black-quilted-lambskin-leather-cc-turn-lock-chain-tote-bag",
+      "chanel-19-small-flap-bag-black-lambskin-leather-mixed-metal-hardware-tri-color-auth"
+    ],
+    "at": "2026-11-07T03:18:52.427Z",
+    "status": "failed",
+    "error": "POST 28539524299050041/media_publish failed: An unexpected error has occurred. Please retry your request later. (code 2)"
   }
 ]
